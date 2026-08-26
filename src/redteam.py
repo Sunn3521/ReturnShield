@@ -131,7 +131,7 @@ def run_redteam_simulation() -> pd.DataFrame:
             "Order Value": f"₹{sc['order_value']:,.2f}",
             "Assessed Abuse Risk": f"{prob:.1%}",
             "Policy Action": decision,
-            "Defense Intercepted?": "✅ Intercepted" if intercepted else "❌ Missed"
+            "Defense Intercepted?": "[OK] Intercepted" if intercepted else "[FAIL] Missed"
         })
         
     return pd.DataFrame(results)
@@ -139,6 +139,6 @@ def run_redteam_simulation() -> pd.DataFrame:
 if __name__ == "__main__":
     df_res = run_redteam_simulation()
     print("=" * 70)
-    print("🛡️ ReturnShield Red-Team Fraud Defense Simulation Benchmark")
+    print("[+] ReturnShield Red-Team Fraud Defense Simulation Benchmark")
     print("=" * 70)
     print(df_res.to_string(index=False))
