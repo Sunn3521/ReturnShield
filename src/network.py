@@ -138,8 +138,7 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
     
     fig = go.Figure(data=[edge_trace, node_trace],
                  layout=go.Layout(
-                    title=title,
-                    titlefont_size=16,
+                    title=dict(text=title, font=dict(size=16)),
                     showlegend=False,
                     hovermode='closest',
                     margin=dict(b=20,l=20,r=20,t=40),
