@@ -6,6 +6,7 @@ echo ============================================================
 echo [1/3] Verifying Python environment...
 
 cd /d "%~dp0"
+set PYTHONPATH=%cd%
 
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
@@ -21,9 +22,9 @@ if %errorlevel% neq 0 (
 )
 
 echo [3/3] Launching FastAPI REST API ^& Streamlit Dashboard...
-start "ReturnShield REST API" cmd /k "python -m uvicorn src.api:app --host 0.0.0.0 --port 8000"
+start "ReturnShield REST API" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 0.0.0.0 --port 8000"
 timeout /t 2 >nul
-start "ReturnShield Operations Dashboard" cmd /k "python -m streamlit run app.py --server.port 8501"
+start "ReturnShield Operations Dashboard" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.port 8501"
 
 echo.
 echo ============================================================
