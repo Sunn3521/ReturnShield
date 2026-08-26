@@ -24,133 +24,88 @@ REPORTS = ROOT / "reports"
 MODELS = ROOT / "models"
 
 st.set_page_config(
-    page_title="ReturnShield AI — Return Abuse Risk Agent", 
+    page_title="ReturnShield AI", 
     page_icon="🛡️", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom High-Aesthetic Dark Theme CSS Injection
+# Custom Styling for Clean Button-Style Sidebar Navigation
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
     
-    /* Sidebar glassmorphism styling */
+    /* Dark sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        background-color: #0F172A;
+        border-right: 1px solid #1E293B;
+        padding-top: 0.5rem;
     }
     
-    /* Brand Header Box */
-    .brand-box {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    /* Top title placement right next to collapse arrow */
+    .sidebar-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #F8FAFC;
+        margin-top: -15px;
+        margin-bottom: 24px;
+        letter-spacing: -0.5px;
     }
     
-    .brand-title {
-        font-size: 20px;
-        font-weight: 700;
-        background: linear-gradient(90deg, #818CF8 0%, #C084FC 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .brand-subtitle {
-        font-size: 12px;
+    /* Navigation Section Header */
+    .nav-header {
+        font-size: 18px;
+        font-weight: 800;
         color: #94A3B8;
-        margin-top: 4px;
-        font-weight: 400;
-    }
-    
-    /* Status Badge Pill */
-    .status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(34, 197, 94, 0.15);
-        border: 1px solid rgba(34, 197, 94, 0.4);
-        color: #4ADE80;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 3px 10px;
-        border-radius: 20px;
-        margin-top: 8px;
+        letter-spacing: 0.5px;
+        margin-bottom: 14px;
+        text-transform: uppercase;
     }
 
-    .pulse-dot {
-        width: 7px;
-        height: 7px;
-        background-color: #22C55E;
-        border-radius: 50%;
-        box-shadow: 0 0 8px #22C55E;
-    }
-    
-    /* Sidebar Navigation Options Styling */
+    /* Hide standard radio label header */
     div[data-testid="stSidebar"] div.stRadio > label {
         display: none;
     }
 
     div[data-testid="stSidebar"] div.stRadio > div {
-        gap: 8px;
+        gap: 10px;
     }
     
+    /* Turn Radio options into sleek Buttons */
     div[data-testid="stSidebar"] div.stRadio > div > label {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 10px;
-        padding: 10px 14px;
-        color: #E2E8F0;
+        background-color: #1E293B;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: #CBD5E1;
         font-size: 14px;
-        font-weight: 500;
+        font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease-in-out;
+        transition: all 0.2s ease;
         display: flex;
         align-items: center;
+        width: 100%;
+        margin: 0;
     }
     
     div[data-testid="stSidebar"] div.stRadio > div > label:hover {
-        background: rgba(99, 102, 241, 0.12);
-        border-color: rgba(99, 102, 241, 0.4);
+        background-color: #334155;
+        border-color: #475569;
         color: #FFFFFF;
-        transform: translateX(4px);
+        transform: translateY(-1px);
     }
     
-    /* Active Radio Item */
+    /* Active Button State */
     div[data-testid="stSidebar"] div.stRadio > div > label[data-checked="true"] {
-        background: linear-gradient(90deg, rgba(99, 102, 241, 0.25) 0%, rgba(168, 85, 247, 0.15) 100%);
-        border: 1px solid #6366F1;
-        border-left: 4px solid #818CF8;
+        background: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%);
+        border: 1px solid #818CF8;
         color: #FFFFFF;
-        font-weight: 600;
-        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
-    }
-
-    /* Sidebar Footer Info Card */
-    .sidebar-footer {
-        background: rgba(15, 23, 42, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
-        padding: 12px;
-        margin-top: 30px;
-        font-size: 11px;
-        color: #64748B;
-    }
-    
-    .metric-value-highlight {
-        color: #38BDF8;
-        font-weight: 600;
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -171,41 +126,24 @@ except Exception as e:
     st.error(f"Model assets not found or error loading: {e}. Run `python run_pipeline.py` first.")
     st.stop()
 
-# Styled Sidebar Brand Header
+# Sidebar Navigation Panel
 with st.sidebar:
-    st.markdown("""
-        <div class="brand-box">
-            <div class="brand-title">🛡️ ReturnShield AI</div>
-            <div class="brand-subtitle">Cost-Sensitive Return Abuse Risk Agent</div>
-            <div class="status-pill">
-                <span class="pulse-dot"></span>
-                <span>SYSTEM ACTIVE • v1.0</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-title">ReturnShield AI</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-header">NAVIGATION</div>', unsafe_allow_html=True)
 
     page = st.radio(
         "Navigation", 
         [
-            "📊  Operations Overview", 
-            "🔍  Return Investigator", 
-            "🕸️  Abuse Ring Explorer", 
-            "📈  Model Evaluation & ROI",
-            "📥  Upload Data & API Sandbox"
+            "Operations Overview", 
+            "Return Investigator", 
+            "Abuse Ring Explorer", 
+            "Model Evaluation & ROI",
+            "Upload Data & API Sandbox"
         ]
     )
 
-    # Sidebar Quick Info Footer Card
-    st.markdown("""
-        <div class="sidebar-footer">
-            <div>⚡ <b>Latency:</b> <span class="metric-value-highlight">11.91 ms (p50)</span></div>
-            <div style="margin-top: 4px;">🎯 <b>Policy:</b> Cost-Optimized (3-Tier)</div>
-            <div style="margin-top: 4px;">🚀 <b>API Server:</b> FastAPI Port 8000</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-if page == "📊  Operations Overview":
-    st.title("🛡️ ReturnShield Operations Overview")
+if page == "Operations Overview":
+    st.title("ReturnShield Operations Overview")
     st.caption("Real-time risk scoring & evidence-backed action recommendations on held-out test evaluation period.")
     
     total = len(predictions)
@@ -269,8 +207,8 @@ if page == "📊  Operations Overview":
         }
     )
 
-elif page == "🔍  Return Investigator":
-    st.title("🔍 Single Return Investigation")
+elif page == "Return Investigator":
+    st.title("Single Return Investigation")
     st.caption("Deep-dive into return signals, SHAP risk factors, and AI operational recommendations.")
     
     rid = st.selectbox("Select Return Request to Inspect", predictions["return_id"].tolist())
@@ -335,8 +273,8 @@ elif page == "🔍  Return Investigator":
         with st.expander("✉️ View Draft Customer Communication", expanded=True):
             st.code(agent_resp['customer_message'], language="markdown")
 
-elif page == "🕸️  Abuse Ring Explorer":
-    st.title("🕸️ Abuse Ring & Cluster Explorer")
+elif page == "Abuse Ring Explorer":
+    st.title("Abuse Ring & Cluster Explorer")
     st.caption("Network analysis identifying coordinated multi-account abuse across shared devices, addresses, and payment fingerprints.")
     
     with st.spinner("Building network graph from customer infrastructure data..."):
@@ -379,8 +317,8 @@ elif page == "🕸️  Abuse Ring Explorer":
             "🟠 **Orange Diamond:** Shared Device, Address, or Payment Infrastructure"
         )
 
-elif page == "📈  Model Evaluation & ROI":
-    st.title("📈 Model Evaluation & Business Loss Analysis")
+elif page == "Model Evaluation & ROI":
+    st.title("Model Evaluation & Business Loss Analysis")
     st.caption("Strict temporal evaluation on held-out test dataset (20% chronological split).")
     
     tm = report["test_model"]
@@ -442,13 +380,13 @@ elif page == "📈  Model Evaluation & ROI":
     )
 
 else: # Upload Data & REST API Sandbox
-    st.title("📥 Custom Data Upload, Red-Team & REST API Sandbox")
+    st.title("Custom Data Upload, Red-Team & REST API Sandbox")
     st.caption("Plug-and-play batch processor, interactive financial cost sandbox, Red-Team simulator, and REST API playground.")
     
     st.subheader("1. Red-Team Fraud Attack Simulation Benchmarking")
     st.markdown("Test ReturnShield defense capabilities against 4 real-world fraud attack vectors:")
     
-    if st.button("⚔️ Run Red-Team Fraud Attack Simulation"):
+    if st.button("Run Red-Team Fraud Attack Simulation"):
         with st.spinner("Executing Red-Team attack simulation..."):
             redteam_df = run_redteam_simulation()
             st.dataframe(redteam_df, use_container_width=True, hide_index=True)
@@ -488,7 +426,7 @@ else: # Upload Data & REST API Sandbox
             custom_df = pd.read_csv(uploaded_file)
             st.success(f"Loaded custom dataset with {len(custom_df)} records.")
             
-            if st.button("🚀 Score Custom Batch Returns"):
+            if st.button("Score Custom Batch Returns"):
                 with st.spinner("Scoring batch data through ReturnShield inference engine..."):
                     probs_custom = predict_bundle(bundle, custom_df)
                     custom_df["risk_probability"] = probs_custom
@@ -498,7 +436,7 @@ else: # Upload Data & REST API Sandbox
                     st.dataframe(custom_df[["return_id", "customer_id", "order_value", "risk_probability", "decision"]], use_container_width=True)
                     
                     csv_export = custom_df.to_csv(index=False).encode('utf-8')
-                    st.download_button("📥 Download Scored CSV", csv_export, "scored_returns_returnshield.csv", "text/csv")
+                    st.download_button("Download Scored CSV", csv_export, "scored_returns_returnshield.csv", "text/csv")
         except Exception as err:
             st.error(f"Error processing custom file: {err}")
 
@@ -513,7 +451,7 @@ else: # Upload Data & REST API Sandbox
     api_linked_acc = col_api2.number_input("Linked Device Accounts", min_value=1, max_value=20, value=4)
     api_hours = col_api2.number_input("Hours to Return", min_value=0.1, max_value=720.0, value=1.5)
 
-    if st.button("⚡ Score Return Request via API Engine"):
+    if st.button("Score Return Request via API Engine"):
         t0 = time.perf_counter()
         test_payload = {
             "return_id": "R999-LIVE",
