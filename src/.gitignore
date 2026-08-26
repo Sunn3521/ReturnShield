@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Data & outputs (regenerated via python run_pipeline.py)
+*.joblib
+*.parquet
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

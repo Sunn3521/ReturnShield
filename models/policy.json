@@ -1,0 +1,17 @@
+{
+  "verify_threshold": 0.12000000000000001,
+  "review_threshold": 0.6800000000000002,
+  "expected_cost": 82430.0,
+  "loss_per_1000": 55359.30154466085,
+  "false_negatives": 31,
+  "false_positives": 67,
+  "verification_rate": 0.06178643384822028,
+  "manual_review_rate": 0.0,
+  "auto_approve_rate": 0.9382135661517798,
+  "costs": {
+    "false_positive": 250.0,
+    "false_negative": 2000.0,
+    "verification": 40.0,
+    "manual_review": 60.0
+  }
+}

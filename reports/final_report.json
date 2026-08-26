@@ -1,0 +1,72 @@
+{
+  "dataset": {
+    "rows": 7447,
+    "positive_rate": 0.03518195246407949,
+    "train_rows": 4468,
+    "validation_rows": 1489,
+    "test_rows": 1490,
+    "train_end": "2025-08-15 03:34:22.519313821",
+    "validation_end": "2025-10-25 15:33:38.540489410",
+    "test_end": "2026-01-15 20:22:22.137201314"
+  },
+  "model_comparison": {
+    "final_logistic_test": {
+      "pr_auc": 0.2007024862275748,
+      "roc_auc": 0.7071943462897526,
+      "precision": 0.06630434782608696,
+      "recall": 0.8133333333333334,
+      "f1": 0.12261306532663317,
+      "brier": 0.3239048586580525
+    },
+    "xgb_challenger_test": {
+      "pr_auc": 0.1425165122392169,
+      "roc_auc": 0.6560188457008245,
+      "precision": 0.20930232558139536,
+      "recall": 0.24,
+      "f1": 0.2236024844720497,
+      "brier": 0.07447714358568192
+    },
+    "selected": "calibrated_logistic"
+  },
+  "final_validation": {
+    "pr_auc": 0.2107787802122973,
+    "roc_auc": 0.7831347821752567,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "brier": 0.032783081368255376
+  },
+  "policy": {
+    "verify_threshold": 0.12000000000000001,
+    "review_threshold": 0.6800000000000002,
+    "expected_cost": 82430.0,
+    "loss_per_1000": 55359.30154466085,
+    "false_negatives": 31,
+    "false_positives": 67,
+    "verification_rate": 0.06178643384822028,
+    "manual_review_rate": 0.0,
+    "auto_approve_rate": 0.9382135661517798
+  },
+  "test_model": {
+    "pr_auc": 0.2007024862275748,
+    "roc_auc": 0.7071943462897526,
+    "precision": 1.0,
+    "recall": 0.013333333333333334,
+    "f1": 0.02631578947368421,
+    "brier": 0.044535674217245566
+  },
+  "test_business": {
+    "verify_threshold": 0.12000000000000001,
+    "review_threshold": 0.6800000000000002,
+    "expected_cost": 122110.0,
+    "loss_per_1000": 81953.02013422818,
+    "false_negatives": 47,
+    "false_positives": 93,
+    "verification_rate": 0.08053691275167785,
+    "manual_review_rate": 0.0006711409395973154,
+    "auto_approve_rate": 0.9187919463087248,
+    "approve_all_expected_cost": 150000.0,
+    "expected_cost_savings": 27890.0,
+    "expected_cost_savings_pct": 0.18593333333333334
+  }
+}
