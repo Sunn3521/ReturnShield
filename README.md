@@ -1,44 +1,51 @@
 # ReturnShield AI
 
-Cost-sensitive return-abuse risk and response agent for merchants.
+**Cost-sensitive return-abuse risk and response agent for merchants.**
 
 ## What this product does
 
-ReturnShield predicts the probability that a return request will eventually cause abusive merchant loss, using only information available at the time of the request. It then applies a validation-set-optimized policy to choose one of:
+ReturnShield predicts the probability that a return request will eventually result in abusive merchant loss, using only information available at the time the return request is submitted.
 
-- **AUTO_APPROVE** — low risk
-- **VERIFY** — request additional evidence
-- **MANUAL_REVIEW** — highest risk
+It then applies a policy optimized on validation data to select one of three operational actions:
+
+* **AUTO_APPROVE** — low risk
+* **VERIFY** — moderate risk; request additional evidence
+* **MANUAL_REVIEW** — highest risk; route to manual review
 
 The product includes:
 
-- point-in-time synthetic event simulation
-- leakage-safe historical features
-- logistic-regression baseline and XGBoost model
-- probability calibration
-- validation-based cost optimization
-- held-out temporal test evaluation
-- SHAP explanations
-- suspicious network/abuse-ring signals
-- Streamlit operations + investigation + model-performance UI
-- optional LLM explanation hook (never controls the decision)
+* Point-in-time synthetic event simulation
+* Leakage-safe historical feature engineering
+* Logistic-regression baseline and XGBoost model
+* Probability calibration
+* Validation-based cost optimization
+* Held-out temporal test evaluation
+* SHAP-based explanations
+* Suspicious network and abuse-ring signals
+* Streamlit operations, investigation, and model-performance UI
+* Optional LLM explanation hook that never controls the decision
 
 ## Quick start
 
 ```bash
 python -m venv .venv
-# Windows: .venv\\Scripts\\activate
-# macOS/Linux: source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+
 pip install -r requirements.txt
 python run_pipeline.py
 streamlit run app.py
 ```
 
-`run_pipeline.py` generates data, trains the model, calibrates probabilities, optimizes the policy on validation data, and evaluates once on the held-out test period.
+`run_pipeline.py` generates the synthetic data, trains the models, calibrates probabilities, optimizes the decision policy on the validation set, and evaluates the final system once on the held-out test period.
 
-The synthetic dataset is intentionally generated from latent behavioral processes rather than assigning the target randomly. The test split is chronological, and all historical features are computed from events strictly prior to each return request.
+The synthetic dataset is generated from latent behavioral processes rather than by randomly assigning the target label. The test split is chronological, and historical features are computed using only events that occurred strictly before each return request.
 
-## Files
+## Project structure
 
 ```text
 returnshield/
@@ -60,34 +67,76 @@ returnshield/
 
 ## Evaluation design
 
-The pipeline uses a chronological split:
+ReturnShield uses a chronological evaluation strategy:
 
-- 60% earliest return requests: training
-- next 20%: validation/model and policy selection
-- final 20%: held-out test
+* **First 60%** of return requests → training
+* **Next 20%** → validation, model selection, calibration, and policy optimization
+* **Final 20%** → strictly held-out test evaluation
 
-Primary prediction metrics:
+The held-out test set is not used for model or threshold selection.
 
-- PR-AUC
-- ROC-AUC
-- Precision
-- Recall
-- F1
-- Brier score
+### Primary prediction metrics
 
-Business metrics:
+* PR-AUC
+* ROC-AUC
+* Precision
+* Recall
+* F1
+* Brier score
 
-- expected merchant loss
-- false-positive cost
-- false-negative cost
-- verification cost
-- manual-review rate
-- expected loss per 1,000 returns
+### Business metrics
+
+* Expected merchant loss
+* False-positive cost
+* False-negative cost
+* Verification cost
+* Manual-review rate
+* Expected loss per 1,000 returns
+
+The system is optimized for merchant economics rather than raw classification accuracy.
+
+## Decision policy
+
+The model produces a calibrated probability of abusive return risk.
+
+The policy layer then maps that probability to an operational action:
+
+```text
+LOW RISK
+    ↓
+AUTO_APPROVE
+
+MODERATE RISK
+    ↓
+VERIFY
+
+HIGH RISK
+    ↓
+MANUAL_REVIEW
+```
+
+Decision thresholds are selected using validation data and explicit business costs. The held-out test set is reserved for final evaluation.
 
 ## Safety / defense-only scope
 
-This is designed strictly for loss prevention. It does not automate accusations, account bans, or exploit generation. It recommends operational friction and manual review. The LLM layer, if connected, is an explanation/response generator only; it cannot override the deterministic policy decision.
+ReturnShield is designed strictly for loss prevention.
+
+It does not automate fraud accusations, account bans, or exploit generation. The system recommends operational friction or manual review based on risk and expected cost.
+
+The optional LLM layer is limited to generating explanations and customer-facing response drafts. It cannot override the deterministic model or policy decision.
 
 ## Important demo note
 
-All records and metrics are synthetic. Do not present placeholder or synthetic results as production fraud rates. Use the generated held-out test report from your run.
+All records, outcomes, and reported metrics are synthetic.
+
+Do not present synthetic results as production fraud rates, production savings, or real merchant performance.
+
+For a hackathon demonstration, use the held-out test report generated by your own pipeline run and clearly identify the results as **synthetic evaluation results**.
+
+## Core design principle
+
+The key design principle is:
+
+> **Predict risk with machine learning, make the business decision with an explicit cost-sensitive policy, and use the LLM only for explanation and communication.**
+
+This keeps the system measurable, auditable, and defense-only.
