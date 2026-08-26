@@ -4,24 +4,18 @@ echo ============================================================
 echo           RETURN SHIELD AI - RETURN ABUSE RISK AGENT
 echo ============================================================
 
-rem Target project folder location
 if exist "C:\Users\sobha\ReturnShield\app.py" (
     cd /d "C:\Users\sobha\ReturnShield"
 ) else (
     cd /d "%~dp0"
 )
 
-echo [1/3] Verifying Python environment...
-set PYTHONPATH=%cd%
-
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Python is not installed or not in PATH!
-    pause
-    exit /b 1
-)
+echo [1/3] Clearing previous processes on ports 8000 and 8501...
+powershell -Command "Get-Process -Id (Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force" >nul 2>&1
+powershell -Command "Get-Process -Id (Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force" >nul 2>&1
 
 echo [2/3] Executing ReturnShield Pipeline ^& Model Training...
+set PYTHONPATH=%cd%
 python run_pipeline.py
 if %errorlevel% neq 0 (
     echo [WARNING] Pipeline run encountered an issue, proceeding with existing assets...
