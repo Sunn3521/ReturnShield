@@ -3,9 +3,15 @@ TITLE ReturnShield AI Agent Launcher
 echo ============================================================
 echo           RETURN SHIELD AI - RETURN ABUSE RISK AGENT
 echo ============================================================
-echo [1/3] Verifying Python environment...
 
-cd /d "%~dp0"
+rem Target project folder location
+if exist "C:\Users\sobha\ReturnShield\app.py" (
+    cd /d "C:\Users\sobha\ReturnShield"
+) else (
+    cd /d "%~dp0"
+)
+
+echo [1/3] Verifying Python environment...
 set PYTHONPATH=%cd%
 
 python --version >nul 2>&1
@@ -22,9 +28,9 @@ if %errorlevel% neq 0 (
 )
 
 echo [3/3] Launching FastAPI REST API ^& Streamlit Dashboard...
-start "ReturnShield REST API" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 0.0.0.0 --port 8000"
+start "ReturnShield REST API" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 0.0.0.0 --port 8000"
 timeout /t 2 >nul
-start "ReturnShield Operations Dashboard" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.port 8501"
+start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.port 8501"
 
 echo.
 echo ============================================================
