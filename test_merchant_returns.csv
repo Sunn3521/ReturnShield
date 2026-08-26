@@ -1,0 +1,11 @@
+return_id,order_id,customer_id,product_category,payment_method,return_reason,order_value,return_value,product_price,discount_pct,customer_account_age_days,orders_7d,orders_30d,orders_90d,returns_7d,returns_30d,returns_90d,return_rate_30d,return_rate_90d,refund_amount_30d,refund_amount_90d,hours_to_return,return_value_ratio,same_product_returns_90d,same_category_returns_90d,velocity_24h,velocity_7d,device_linked_accounts,address_linked_accounts,device_return_rate_90d,address_return_rate_90d,high_value_flag
+R_TEST_001,O_TEST_101,C_LEGIT_01,electronics,upi,damaged,3500.0,3500.0,3500.0,0.0,420,0,2,8,0,0,1,0.0,0.125,0.0,3500.0,48.5,1.0,0,0,0,0,1,1,0.12,0.12,0
+R_TEST_002,O_TEST_102,C_ABUSE_01,fashion,card,changed_mind,18500.0,18500.0,18500.0,0.0,35,2,5,9,2,4,7,0.8,0.777,37000.0,74000.0,8.2,1.0,2,4,2,3,4,3,0.75,0.7,1
+R_TEST_003,O_TEST_103,C_RING_01,electronics,upi,wrong_item,45000.0,45000.0,45000.0,0.0,12,2,3,3,2,3,3,1.0,1.0,90000.0,90000.0,1.5,1.0,1,2,2,3,6,5,0.85,0.8,1
+R_TEST_004,O_TEST_104,C_LEGIT_02,home,card,size_fit,2200.0,2200.0,2200.0,0.0,680,0,1,6,0,0,0,0.0,0.0,0.0,0.0,72.0,1.0,0,0,0,0,1,1,0.0,0.0,0
+R_TEST_005,O_TEST_105,C_WARDROBE_02,fashion,upi,changed_mind,28900.0,28900.0,28900.0,0.0,28,3,6,10,2,5,8,0.833,0.8,57800.0,115600.0,9.0,1.0,3,6,2,4,3,2,0.68,0.65,1
+R_TEST_006,O_TEST_106,C_EMPTYBOX_02,electronics,cod,damaged,52000.0,52000.0,52000.0,0.0,15,1,2,2,1,2,2,1.0,1.0,52000.0,52000.0,1.1,1.0,1,2,1,2,5,4,0.9,0.85,1
+R_TEST_007,O_TEST_107,C_LEGIT_03,beauty,wallet,not_as_described,1200.0,1200.0,1200.0,0.0,310,0,3,12,0,1,1,0.333,0.083,1200.0,1200.0,120.0,1.0,0,1,0,0,1,1,0.08,0.08,0
+R_TEST_008,O_TEST_108,C_VELOCITY_02,sports,upi,damaged,14500.0,14500.0,14500.0,0.0,45,4,7,11,4,6,9,0.857,0.818,43500.0,87000.0,3.8,1.0,2,4,3,5,3,3,0.72,0.7,1
+R_TEST_009,O_TEST_109,C_LEGIT_04,grocery,cod,wrong_item,850.0,850.0,850.0,0.0,550,1,4,18,0,0,1,0.0,0.055,0.0,850.0,24.0,1.0,0,0,1,1,1,1,0.05,0.05,0
+R_TEST_010,O_TEST_110,C_RING_02,electronics,card,damaged,39000.0,39000.0,39000.0,0.0,19,2,4,4,2,4,4,1.0,1.0,78000.0,78000.0,2.1,1.0,1,3,2,3,7,6,0.88,0.82,1
