@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Large datasets (>100MB)
+test_merchant_200mb_returns.csv
+*.parquet
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
