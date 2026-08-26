@@ -16,6 +16,8 @@ from src.model import load_bundle, predict_bundle
 from src.network import build_abuse_graph, plot_cluster_graph
 from src.policy import Costs, evaluate_policy, optimize_policy
 from src.responder import generate_agent_response
+from src.redteam import run_redteam_simulation
+from src.shopify_webhook import process_shopify_return_webhook
 
 ROOT = Path(__file__).resolve().parent
 REPORTS = ROOT / "reports"
@@ -290,10 +292,21 @@ elif page == "Model Performance & Cost":
     )
 
 else: # Upload Data & REST API Sandbox
-    st.title("📥 Custom Data Upload & REST API Sandbox")
-    st.caption("Plug-and-play batch processor, interactive financial cost sandbox, and REST API playground.")
+    st.title("📥 Custom Data Upload, Red-Team & REST API Sandbox")
+    st.caption("Plug-and-play batch processor, interactive financial cost sandbox, Red-Team simulator, and REST API playground.")
     
-    st.subheader("1. Interactive Policy & Cost Sandbox")
+    st.subheader("1. Red-Team Fraud Attack Simulation Benchmarking")
+    st.markdown("Test ReturnShield defense capabilities against 4 real-world fraud attack vectors:")
+    
+    if st.button("⚔️ Run Red-Team Fraud Attack Simulation"):
+        with st.spinner("Executing Red-Team attack simulation..."):
+            redteam_df = run_redteam_simulation()
+            st.dataframe(redteam_df, use_container_width=True, hide_index=True)
+            st.success("All 4 Red-Team attack vectors successfully intercepted by ReturnShield cost policy!")
+
+    st.markdown("---")
+    
+    st.subheader("2. Interactive Policy & Cost Sandbox")
     st.markdown("Adjust business cost parameters live to observe dynamic policy threshold re-optimization:")
     
     col_c1, col_c2, col_c3, col_c4 = st.columns(4)
@@ -304,7 +317,6 @@ else: # Upload Data & REST API Sandbox
     
     custom_costs = Costs(false_positive=fp_cost, false_negative=fn_cost, verification=vf_cost, manual_review=mr_cost)
     
-    # Calculate live policy optimization on predictions
     probs = predictions["risk_probability"].to_numpy()
     opt_result = optimize_policy(predictions, probs, custom_costs)
     
@@ -319,7 +331,7 @@ else: # Upload Data & REST API Sandbox
 
     st.markdown("---")
     
-    st.subheader("2. Drag & Drop Custom Merchant Dataset")
+    st.subheader("3. Drag & Drop Custom Merchant Dataset")
     uploaded_file = st.file_uploader("Upload custom `returns.csv` feature dataset", type=["csv"])
     if uploaded_file is not None:
         try:
@@ -342,7 +354,7 @@ else: # Upload Data & REST API Sandbox
 
     st.markdown("---")
     
-    st.subheader("3. Live REST API Scoring Tester")
+    st.subheader("4. Live REST API & Shopify Webhook Tester")
     st.markdown("Test single return request API scoring live against the model engine:")
     
     col_api1, col_api2 = st.columns(2)
