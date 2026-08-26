@@ -24,7 +24,7 @@ if %errorlevel% neq 0 (
 echo [3/3] Launching FastAPI REST API ^& Streamlit Dashboard...
 start "ReturnShield REST API" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 0.0.0.0 --port 8000"
 timeout /t 2 >nul
-start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.port 8501"
+start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.port 8501 --server.maxUploadSize 1000"
 
 echo.
 echo ============================================================
