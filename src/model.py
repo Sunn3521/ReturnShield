@@ -35,7 +35,7 @@ def chronological_split(df: pd.DataFrame, train_frac=.6, valid_frac=.2) -> DataS
 def make_preprocessor():
     return ColumnTransformer([
         ("num", Pipeline([("impute", SimpleImputer(strategy="median")), ("scale", StandardScaler())]), NUMERIC),
-        ("cat", Pipeline([("impute", SimpleImputer(strategy="most_frequent")), ("ohe", OneHotEncoder(handle_unknown="ignore") )]), CATEGORICAL),
+        ("cat", Pipeline([("impute", SimpleImputer(strategy="most_frequent")), ("ohe", OneHotEncoder(handle_unknown="ignore"))]), CATEGORICAL),
     ])
 
 
@@ -75,7 +75,6 @@ def fit_xgb(train: pd.DataFrame):
 
 
 def fit_sigmoid_calibrator(valid_y, valid_prob):
-    # Calibrate only after training, using validation data. This is a monotonic mapping.
     from sklearn.linear_model import LogisticRegression
     clipped = np.clip(np.asarray(valid_prob), 1e-6, 1 - 1e-6)
     logit = np.log(clipped / (1.0 - clipped)).reshape(-1, 1)
@@ -90,12 +89,33 @@ def calibrate(calibrator, prob):
     return calibrator.predict_proba(logit)[:, 1]
 
 
+def ensure_features(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    if "returns_30d" in df.columns and "orders_30d" in df.columns and "return_rate_30d" not in df.columns:
+        df["return_rate_30d"] = df["returns_30d"] / df["orders_30d"].clip(lower=1)
+    if "returns_90d" in df.columns and "orders_90d" in df.columns and "return_rate_90d" not in df.columns:
+        df["return_rate_90d"] = df["returns_90d"] / df["orders_90d"].clip(lower=1)
+    if "return_value" in df.columns and "order_value" in df.columns and "return_value_ratio" not in df.columns:
+        df["return_value_ratio"] = df["return_value"] / df["order_value"].clip(lower=1.0)
+    if "order_value" in df.columns and "high_value_flag" not in df.columns:
+        df["high_value_flag"] = (df["order_value"] >= 7500.0).astype(int)
+    for col in NUMERIC:
+        if col not in df.columns:
+            df[col] = 0.0
+    for col in CATEGORICAL:
+        if col not in df.columns:
+            df[col] = "unknown"
+    return df
+
+
 def predict_logistic(model, df):
-    return model.predict_proba(df[NUMERIC + CATEGORICAL])[:, 1]
+    df_clean = ensure_features(df)
+    return model.predict_proba(df_clean[NUMERIC + CATEGORICAL])[:, 1]
 
 
 def predict_xgb(pre, model, df):
-    X = pre.transform(df[NUMERIC + CATEGORICAL])
+    df_clean = ensure_features(df)
+    X = pre.transform(df_clean[NUMERIC + CATEGORICAL])
     return model.predict_proba(X)[:, 1]
 
 
@@ -120,9 +140,10 @@ def load_bundle(path="models/model_bundle.joblib"):
 
 
 def predict_bundle(bundle, df):
+    df_clean = ensure_features(df)
     if bundle["kind"] == "logistic":
-        raw = predict_logistic(bundle["model"], df)
+        raw = predict_logistic(bundle["model"], df_clean)
     else:
         pre = bundle["preprocessor"]
-        raw = predict_xgb(pre, bundle["model"], df)
+        raw = predict_xgb(pre, bundle["model"], df_clean)
     return calibrate(bundle["calibrator"], raw)

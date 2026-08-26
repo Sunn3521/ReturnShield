@@ -30,7 +30,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling for Clean Button-Style Sidebar Navigation
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -39,14 +38,12 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
-    /* Dark sidebar styling */
     [data-testid="stSidebar"] {
         background-color: #0F172A;
         border-right: 1px solid #1E293B;
         padding-top: 0.5rem;
     }
     
-    /* Top title placement right next to collapse arrow */
     .sidebar-title {
         font-size: 22px;
         font-weight: 800;
@@ -56,7 +53,6 @@ st.markdown("""
         letter-spacing: -0.5px;
     }
     
-    /* Navigation Section Header */
     .nav-header {
         font-size: 18px;
         font-weight: 800;
@@ -66,7 +62,6 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* Hide standard radio label header */
     div[data-testid="stSidebar"] div.stRadio > label {
         display: none;
     }
@@ -75,7 +70,6 @@ st.markdown("""
         gap: 10px;
     }
     
-    /* Turn Radio options into sleek Buttons */
     div[data-testid="stSidebar"] div.stRadio > div > label {
         background-color: #1E293B;
         border: 1px solid #334155;
@@ -99,7 +93,6 @@ st.markdown("""
         transform: translateY(-1px);
     }
     
-    /* Active Button State */
     div[data-testid="stSidebar"] div.stRadio > div > label[data-checked="true"] {
         background: linear-gradient(90deg, #4F46E5 0%, #6366F1 100%);
         border: 1px solid #818CF8;
@@ -126,7 +119,6 @@ except Exception as e:
     st.error(f"Model assets not found or error loading: {e}. Run `python run_pipeline.py` first.")
     st.stop()
 
-# Sidebar Navigation Panel
 with st.sidebar:
     st.markdown('<div class="sidebar-title">ReturnShield AI</div>', unsafe_allow_html=True)
     st.markdown('<div class="nav-header">NAVIGATION</div>', unsafe_allow_html=True)
@@ -466,6 +458,8 @@ else: # Upload Data & REST API Sandbox
             "customer_account_age_days": 45,
             "orders_7d": 2, "orders_30d": 5, "orders_90d": 8,
             "returns_7d": 2, "returns_30d": 4, "returns_90d": api_returns_90d,
+            "return_rate_30d": 4 / 5,
+            "return_rate_90d": api_returns_90d / 8,
             "refund_amount_30d": api_order_val * 2, "refund_amount_90d": api_order_val * 3,
             "hours_to_return": api_hours,
             "same_product_returns_90d": 1, "same_category_returns_90d": 3,
