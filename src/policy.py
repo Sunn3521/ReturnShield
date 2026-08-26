@@ -15,8 +15,12 @@ class Costs:
 
 
 def evaluate_policy(df: pd.DataFrame, prob, verify_threshold, review_threshold, costs=Costs()):
-    y = df["abusive_return"].to_numpy().astype(int)
     prob = np.asarray(prob)
+    if "abusive_return" in df.columns:
+        y = df["abusive_return"].to_numpy().astype(int)
+    else:
+        y = (prob >= 0.50).astype(int)
+
     decision = np.where(prob < verify_threshold, "AUTO_APPROVE", np.where(prob < review_threshold, "VERIFY", "MANUAL_REVIEW"))
 
     auto = decision == "AUTO_APPROVE"
