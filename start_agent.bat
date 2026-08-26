@@ -5,7 +5,7 @@ echo           RETURN SHIELD AI - RETURN ABUSE RISK AGENT
 echo ============================================================
 echo [1/3] Verifying Python environment...
 
-cd /d "%~dp0.."
+cd /d "%~dp0"
 
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
