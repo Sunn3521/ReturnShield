@@ -30,6 +30,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Custom Styling for Clean Button-Style Sidebar Navigation
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -60,6 +61,17 @@ st.markdown("""
         letter-spacing: 0.5px;
         margin-bottom: 14px;
         text-transform: uppercase;
+    }
+
+    .dataset-badge {
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        font-size: 12px;
+        color: #818CF8;
+        font-weight: 600;
     }
 
     div[data-testid="stSidebar"] div.stRadio > label {
@@ -114,13 +126,36 @@ def load_assets():
     return report, predictions, bundle, policy, features
 
 try:
-    report, predictions, bundle, policy, features = load_assets()
+    report, default_predictions, bundle, policy, default_features = load_assets()
 except Exception as e:
     st.error(f"Model assets not found or error loading: {e}. Run `python run_pipeline.py` first.")
     st.stop()
 
+# Initialize global session state for active dataset
+if "active_predictions" not in st.session_state:
+    st.session_state["active_predictions"] = default_predictions.copy()
+    st.session_state["active_features"] = default_features.copy()
+    st.session_state["dataset_name"] = "Default Evaluation Dataset (2,000 Returns)"
+    st.session_state["is_custom"] = False
+
+predictions = st.session_state["active_predictions"]
+features = st.session_state["active_features"]
+
+# Sidebar Navigation Panel
 with st.sidebar:
     st.markdown('<div class="sidebar-title">ReturnShield AI</div>', unsafe_allow_html=True)
+    
+    # Active Dataset Status Badge
+    st.markdown(f'<div class="dataset-badge">📂 DATASET: {st.session_state["dataset_name"]}</div>', unsafe_allow_html=True)
+    
+    if st.session_state["is_custom"]:
+        if st.button("🔄 Reset to Default Dataset"):
+            st.session_state["active_predictions"] = default_predictions.copy()
+            st.session_state["active_features"] = default_features.copy()
+            st.session_state["dataset_name"] = "Default Evaluation Dataset (2,000 Returns)"
+            st.session_state["is_custom"] = False
+            st.rerun()
+
     st.markdown('<div class="nav-header">NAVIGATION</div>', unsafe_allow_html=True)
 
     page = st.radio(
@@ -136,19 +171,25 @@ with st.sidebar:
 
 if page == "Operations Overview":
     st.title("ReturnShield Operations Overview")
-    st.caption("Real-time risk scoring & evidence-backed action recommendations on held-out test evaluation period.")
+    st.caption(f"Real-time risk scoring & evidence-backed action recommendations on active dataset: **{st.session_state['dataset_name']}**")
     
     total = len(predictions)
     high = int((predictions["decision"] == "MANUAL_REVIEW").sum())
     verify = int((predictions["decision"] == "VERIFY").sum())
     auto = int((predictions["decision"] == "AUTO_APPROVE").sum())
     
+    # Calculate costs dynamically
+    baseline_loss = float((predictions["abusive_return"] * 2000.0).sum()) if "abusive_return" in predictions.columns else float((predictions["risk_probability"] * predictions["order_value"]).sum())
+    model_loss = float((predictions["merchant_loss"]).sum()) if "merchant_loss" in predictions.columns else float((predictions["risk_probability"] * 2000.0).sum())
+    cost_savings = max(baseline_loss - model_loss, 0.0)
+    cost_savings_pct = cost_savings / max(baseline_loss, 1.0)
+
     cols = st.columns(5)
     cols[0].metric("Total Returns", f"{total:,}")
     cols[1].metric("Auto Approved", f"{auto:,}", f"{auto/total:.1%}")
     cols[2].metric("Evidence Required", f"{verify:,}", f"{verify/total:.1%}")
     cols[3].metric("Manual Review", f"{high:,}", f"{high/total:.1%}")
-    cols[4].metric("Cost Savings", f"₹{report['test_business']['expected_cost_savings']:,.0f}", f"+{report['test_business']['expected_cost_savings_pct']:.1%}")
+    cols[4].metric("Est. Cost Savings", f"₹{cost_savings:,.0f}", f"+{cost_savings_pct:.1%}")
 
     st.markdown("---")
     
@@ -201,21 +242,21 @@ if page == "Operations Overview":
 
 elif page == "Return Investigator":
     st.title("Single Return Investigation")
-    st.caption("Deep-dive into return signals, SHAP risk factors, and AI operational recommendations.")
+    st.caption(f"Deep-dive into return signals, SHAP risk factors, and AI operational recommendations for **{st.session_state['dataset_name']}**.")
     
-    rid = st.selectbox("Select Return Request to Inspect", predictions["return_id"].tolist())
+    rid = st.selectbox("Select Return Request to Inspect", predictions["return_id"].head(500).tolist())
     row = predictions[predictions["return_id"] == rid].iloc[0]
     
     st.subheader(f"Return Request: {rid}")
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Predicted Abuse Risk", f"{row['risk_probability']:.1%}")
     c2.metric("Order Value", f"₹{row['order_value']:,.2f}")
-    c3.metric("Expected Merchant Loss", f"₹{row['merchant_loss']:,.2f}")
+    c3.metric("Expected Merchant Loss", f"₹{row.get('merchant_loss', row['risk_probability'] * 2000.0):,.2f}")
     
     dec_color = "green" if row["decision"] == "AUTO_APPROVE" else "orange" if row["decision"] == "VERIFY" else "red"
     c4.markdown(f"### Action\n:{dec_color}[**{row['decision']}**]")
 
-    full_row = features[features["return_id"] == rid].iloc[[0]].copy()
+    full_row = features[features["return_id"] == rid].iloc[[0]].copy() if "return_id" in features.columns and (features["return_id"] == rid).any() else row.to_frame().T
     shap_items = top_features(bundle, full_row, top_n=6)
     reasons = concise_reasoning(full_row.iloc[0], shap_items)
 
@@ -267,109 +308,68 @@ elif page == "Return Investigator":
 
 elif page == "Abuse Ring Explorer":
     st.title("Abuse Ring & Cluster Explorer")
-    st.caption("Network analysis identifying coordinated multi-account abuse across shared devices, addresses, and payment fingerprints.")
+    st.caption(f"Network analysis identifying coordinated multi-account abuse across active dataset: **{st.session_state['dataset_name']}**")
     
-    with st.spinner("Building network graph from customer infrastructure data..."):
-        G, cluster_df = build_abuse_graph(str(ROOT / "data/raw"))
+    with st.spinner("Analyzing network graph from infrastructure data..."):
+        # Build cluster network graph dynamically from active predictions
+        high_risk_accounts = predictions[predictions["device_linked_accounts"] >= 3].copy()
         
-    if cluster_df.empty:
-        st.info("No multi-account clusters detected above the threshold size.")
-    else:
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Suspicious Clusters Detected", f"{len(cluster_df)}")
-        m2.metric("Total Accounts in Clusters", f"{cluster_df['customer_count'].sum()}")
-        m3.metric("High Abuse Clusters (>50% Abuse)", f"{(cluster_df['cluster_abuse_rate'] >= 0.5).sum()}")
-        
-        st.subheader("Detected Coordinated Clusters")
-        st.dataframe(
-            cluster_df[["cluster_id", "customer_count", "total_returns", "abusive_returns", "cluster_abuse_rate", "total_refund_value"]],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "cluster_id": "Cluster ID",
-                "customer_count": "Linked Accounts",
-                "total_returns": "Total Cluster Returns",
-                "abusive_returns": "Abusive Returns",
-                "cluster_abuse_rate": "Cluster Abuse Rate",
-                "total_refund_value": "Total Refunds (₹)"
-            }
-        )
-        
-        selected_cid = st.selectbox("Select Cluster to Graph", cluster_df["cluster_id"].tolist())
-        c_row = cluster_df[cluster_df["cluster_id"] == selected_cid].iloc[0]
-        
-        st.subheader(f"Network Graph: {selected_cid}")
-        fig_graph = plot_cluster_graph(G, c_row["nodes"], title=f"Abuse Ring Graph — {selected_cid} ({c_row['customer_count']} Linked Accounts)")
-        st.plotly_chart(fig_graph, use_container_width=True)
-        
-        st.markdown(
-            "**Legend:**  \n"
-            "🔴 **Red Circle:** Abusive / High Risk Customer Account  \n"
-            "🔵 **Blue Circle:** Normal Customer Account  \n"
-            "🟠 **Orange Diamond:** Shared Device, Address, or Payment Infrastructure"
-        )
+        if high_risk_accounts.empty:
+            st.info("No suspicious multi-account clusters detected above the link threshold in this dataset.")
+        else:
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Suspicious Linked Returns", f"{len(high_risk_accounts):,}")
+            m2.metric("Avg Linked Devices", f"{high_risk_accounts['device_linked_accounts'].mean():.1f}")
+            m3.metric("High Abuse Risk Rate", f"{(high_risk_accounts['risk_probability'] >= 0.5).mean():.1%}")
+            
+            st.subheader("High-Risk Coordinated Accounts")
+            st.dataframe(
+                high_risk_accounts[["return_id", "customer_id", "order_value", "risk_probability", "decision", "device_linked_accounts", "address_linked_accounts"]].head(100),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "return_id": "Return ID",
+                    "customer_id": "Customer ID",
+                    "order_value": "Order Value (₹)",
+                    "risk_probability": "Risk Probability",
+                    "decision": "Action",
+                    "device_linked_accounts": "Device Accounts",
+                    "address_linked_accounts": "Address Accounts"
+                }
+            )
 
 elif page == "Model Evaluation & ROI":
     st.title("Model Evaluation & Business Loss Analysis")
-    st.caption("Strict temporal evaluation on held-out test dataset (20% chronological split).")
+    st.caption(f"Evaluation & financial loss metrics computed on active dataset: **{st.session_state['dataset_name']}**")
     
-    tm = report["test_model"]
-    tb = report["test_business"]
+    total_n = len(predictions)
+    auto_n = int((predictions["decision"] == "AUTO_APPROVE").sum())
+    ver_n = int((predictions["decision"] == "VERIFY").sum())
+    rev_n = int((predictions["decision"] == "MANUAL_REVIEW").sum())
     
-    st.subheader("Prediction Performance Metrics")
-    c = st.columns(6)
-    c[0].metric("PR-AUC", f"{tm['pr_auc']:.3f}")
-    c[1].metric("ROC-AUC", f"{tm['roc_auc']:.3f}")
-    c[2].metric("Precision", f"{tm['precision']:.1%}")
-    c[3].metric("Recall", f"{tm['recall']:.1%}")
-    c[4].metric("F1 Score", f"{tm['f1']:.3f}")
-    c[5].metric("Brier Score", f"{tm['brier']:.3f}")
+    st.subheader("Active Policy Distribution")
+    m = st.columns(3)
+    m[0].metric("Auto Approve Rate", f"{auto_n/total_n:.1%}", f"{auto_n:,} returns")
+    m[1].metric("Evidence Verification Rate", f"{ver_n/total_n:.1%}", f"{ver_n:,} returns")
+    m[2].metric("Manual Review Rate", f"{rev_n/total_n:.1%}", f"{rev_n:,} returns")
 
     st.markdown("---")
     
+    baseline_loss = float((predictions["risk_probability"] * predictions["order_value"]).sum())
+    model_cost = float((predictions["merchant_loss"]).sum()) if "merchant_loss" in predictions.columns else float((predictions["risk_probability"] * 2000.0).sum())
+    savings = max(baseline_loss - model_cost, 0.0)
+
     col_policy, col_cost = st.columns([1, 1])
-    
     with col_policy:
-        st.subheader("⚙️ Optimized Operating Policy")
-        st.write(f"Validation-tuned verify threshold: **{policy['verify_threshold']:.2f}**")
-        st.write(f"Validation-tuned manual-review threshold: **{policy['review_threshold']:.2f}**")
-        
-        m = st.columns(3)
-        m[0].metric("Auto Approve Rate", f"{tb['auto_approve_rate']:.1%}")
-        m[1].metric("Evidence Verification Rate", f"{tb['verification_rate']:.1%}")
-        m[2].metric("Manual Review Rate", f"{tb['manual_review_rate']:.1%}")
+        st.subheader("⚙️ Operating Policy Thresholds")
+        st.write(f"Verify threshold (T1): **{policy['verify_threshold']:.2f}**")
+        st.write(f"Manual review threshold (T2): **{policy['review_threshold']:.2f}**")
         
     with col_cost:
-        st.subheader("💰 Cost & Loss Comparison")
-        st.metric("Approve-All Baseline Cost", f"₹{tb['approve_all_expected_cost']:,.0f}")
-        st.metric("ReturnShield Expected Cost", f"₹{tb['expected_cost']:,.0f}")
-        st.metric("Net Financial Savings", f"₹{tb['expected_cost_savings']:,.0f}", f"+{tb['expected_cost_savings_pct']:.1%} reduction")
-
-    st.subheader("Decision Errors & Loss Metrics")
-    counts = pd.DataFrame({
-        "Metric": ["False Negatives (Missed Fraud)", "False Positives (Customer Friction)"],
-        "Count": [tb["false_negatives"], tb["false_positives"]],
-        "Est. Financial Impact": [f"₹{tb['false_negatives']*2000:,.0f}", f"₹{tb['false_positives']*250:,.0f}"]
-    })
-    st.dataframe(counts, use_container_width=True, hide_index=True)
-
-    st.subheader("Model Benchmark Comparison")
-    comp = report["model_comparison"]
-    comparison = pd.DataFrame({
-        "Model Architecture": ["Calibrated Logistic Regression (Selected)", "XGBoost Classifier (Challenger)"],
-        "PR-AUC": [comp["final_logistic_test"]["pr_auc"], comp["xgb_challenger_test"]["pr_auc"]],
-        "ROC-AUC": [comp["final_logistic_test"]["roc_auc"], comp["xgb_challenger_test"]["roc_auc"]],
-        "Brier Calibration": [comp["final_logistic_test"]["brier"], comp["xgb_challenger_test"]["brier"]],
-    })
-    st.dataframe(comparison, use_container_width=True, hide_index=True)
-
-    st.subheader("Evaluation Methodology Safeguards")
-    st.markdown(
-        "- **Chronological Temporal Split:** 60% Train / 20% Validation / 20% Held-Out Test.  \n"
-        "- **Leakage-Safe Features:** All customer history metrics computed strictly before each return request timestamp.  \n"
-        "- **Cost Matrix Optimization:** Thresholds $(T_1, T_2)$ optimized on validation set using explicit false-positive, false-negative, verification, and ops review costs.  \n"
-        "- **Unbiased Test Set:** Held-out test set evaluated strictly once after policy selection."
-    )
+        st.subheader("💰 Cost & Loss Metrics")
+        st.metric("Unchecked Baseline Risk Loss", f"₹{baseline_loss:,.0f}")
+        st.metric("ReturnShield Expected Loss", f"₹{model_cost:,.0f}")
+        st.metric("Net Financial ROI", f"₹{savings:,.0f}", f"+{savings/max(baseline_loss,1):.1%} reduction")
 
 else: # Upload Data & REST API Sandbox
     st.title("Custom Data Upload, Red-Team & REST API Sandbox")
@@ -405,7 +405,7 @@ else: # Upload Data & REST API Sandbox
     s_col2.metric("Optimized Review Threshold (T2)", f"{opt_result['review_threshold']:.2f}")
     s_col3.metric("Expected Total Policy Loss", f"₹{opt_result['expected_cost']:,.0f}")
     
-    baseline_loss = (predictions["abusive_return"] * fn_cost).sum()
+    baseline_loss = (predictions.get("abusive_return", predictions["risk_probability"]) * fn_cost).sum()
     savings_live = baseline_loss - opt_result['expected_cost']
     s_col4.metric("Net Financial ROI", f"₹{savings_live:,.0f}", f"+{savings_live/max(baseline_loss,1):.1%}")
 
@@ -416,16 +416,23 @@ else: # Upload Data & REST API Sandbox
     if uploaded_file is not None:
         try:
             custom_df = pd.read_csv(uploaded_file)
-            st.success(f"Loaded custom dataset with {len(custom_df)} records.")
+            st.success(f"Loaded custom dataset with {len(custom_df):,} records.")
             
-            if st.button("Score Custom Batch Returns"):
-                with st.spinner("Scoring batch data through ReturnShield inference engine..."):
+            if st.button("🚀 Score & Activate Custom Dataset Across All Tabs"):
+                with st.spinner(f"Scoring {len(custom_df):,} records through ReturnShield inference engine..."):
                     probs_custom = predict_bundle(bundle, custom_df)
                     custom_df["risk_probability"] = probs_custom
                     custom_df["decision"] = np.where(probs_custom < opt_result["verify_threshold"], "AUTO_APPROVE", np.where(probs_custom < opt_result["review_threshold"], "VERIFY", "MANUAL_REVIEW"))
+                    custom_df["merchant_loss"] = np.where(custom_df["decision"] == "AUTO_APPROVE", custom_df["risk_probability"] * 2000.0, np.where(custom_df["decision"] == "VERIFY", 40.0, 60.0))
                     
-                    st.subheader("Batch Scoring Results")
-                    st.dataframe(custom_df[["return_id", "customer_id", "order_value", "risk_probability", "decision"]], use_container_width=True)
+                    # Activate globally for all tabs
+                    st.session_state["active_predictions"] = custom_df.copy()
+                    st.session_state["active_features"] = custom_df.copy()
+                    st.session_state["dataset_name"] = f"Custom Dataset ({len(custom_df):,} Returns)"
+                    st.session_state["is_custom"] = True
+                    
+                    st.success(f"✅ Successfully scored and activated dataset with {len(custom_df):,} returns across all tabs!")
+                    st.dataframe(custom_df[["return_id", "customer_id", "order_value", "risk_probability", "decision"]].head(100), use_container_width=True)
                     
                     csv_export = custom_df.to_csv(index=False).encode('utf-8')
                     st.download_button("Download Scored CSV", csv_export, "scored_returns_returnshield.csv", "text/csv")
