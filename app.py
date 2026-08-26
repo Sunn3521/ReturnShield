@@ -311,7 +311,6 @@ elif page == "Abuse Ring Explorer":
     st.caption(f"Network analysis identifying coordinated multi-account abuse across active dataset: **{st.session_state['dataset_name']}**")
     
     with st.spinner("Analyzing network graph from infrastructure data..."):
-        # Build cluster network graph dynamically from active predictions
         high_risk_accounts = predictions[predictions["device_linked_accounts"] >= 3].copy()
         
         if high_risk_accounts.empty:
@@ -411,14 +410,30 @@ else: # Upload Data & REST API Sandbox
 
     st.markdown("---")
     
-    st.subheader("3. Drag & Drop Custom Merchant Dataset")
-    uploaded_file = st.file_uploader("Upload custom `returns.csv` feature dataset", type=["csv"])
+    st.subheader("3. Custom Merchant Dataset Management & Batch Processor")
+    
+    if st.session_state["is_custom"]:
+        st.success(f"📂 **Active Custom Dataset:** `{st.session_state['dataset_name']}` ({len(st.session_state['active_predictions']):,} records scored & active across all dashboard tabs)")
+        st.dataframe(st.session_state["active_predictions"][["return_id", "customer_id", "order_value", "risk_probability", "decision"]].head(100), use_container_width=True)
+        
+        col_export, col_reset = st.columns([1, 1])
+        csv_export = st.session_state["active_predictions"].to_csv(index=False).encode('utf-8')
+        col_export.download_button("📥 Download Scored CSV Report", csv_export, "scored_returns_returnshield.csv", "text/csv")
+        if col_reset.button("🔄 Deactivate & Re-upload New Dataset"):
+            st.session_state["active_predictions"] = default_predictions.copy()
+            st.session_state["active_features"] = default_features.copy()
+            st.session_state["dataset_name"] = "Default Evaluation Dataset (2,000 Returns)"
+            st.session_state["is_custom"] = False
+            st.rerun()
+
+    st.markdown("##### Upload New Dataset")
+    uploaded_file = st.file_uploader("Upload custom `returns.csv` feature dataset", type=["csv"], key="custom_csv_uploader")
     if uploaded_file is not None:
         try:
             custom_df = pd.read_csv(uploaded_file)
-            st.success(f"Loaded custom dataset with {len(custom_df):,} records.")
+            st.info(f"Loaded file `{uploaded_file.name}` ({len(custom_df):,} records). Click button below to score and activate across all tabs:")
             
-            if st.button("🚀 Score & Activate Custom Dataset Across All Tabs"):
+            if st.button("🚀 Score & Activate Custom Dataset Across All Tabs", key="btn_score_activate"):
                 with st.spinner(f"Scoring {len(custom_df):,} records through ReturnShield inference engine..."):
                     probs_custom = predict_bundle(bundle, custom_df)
                     custom_df["risk_probability"] = probs_custom
@@ -428,14 +443,9 @@ else: # Upload Data & REST API Sandbox
                     # Activate globally for all tabs
                     st.session_state["active_predictions"] = custom_df.copy()
                     st.session_state["active_features"] = custom_df.copy()
-                    st.session_state["dataset_name"] = f"Custom Dataset ({len(custom_df):,} Returns)"
+                    st.session_state["dataset_name"] = f"{uploaded_file.name} ({len(custom_df):,} Returns)"
                     st.session_state["is_custom"] = True
-                    
-                    st.success(f"✅ Successfully scored and activated dataset with {len(custom_df):,} returns across all tabs!")
-                    st.dataframe(custom_df[["return_id", "customer_id", "order_value", "risk_probability", "decision"]].head(100), use_container_width=True)
-                    
-                    csv_export = custom_df.to_csv(index=False).encode('utf-8')
-                    st.download_button("Download Scored CSV", csv_export, "scored_returns_returnshield.csv", "text/csv")
+                    st.rerun()
         except Exception as err:
             st.error(f"Error processing custom file: {err}")
 
