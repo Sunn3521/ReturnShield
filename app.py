@@ -23,7 +23,137 @@ ROOT = Path(__file__).resolve().parent
 REPORTS = ROOT / "reports"
 MODELS = ROOT / "models"
 
-st.set_page_config(page_title="ReturnShield AI", page_icon="🛡️", layout="wide")
+st.set_page_config(
+    page_title="ReturnShield AI — Return Abuse Risk Agent", 
+    page_icon="🛡️", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom High-Aesthetic Dark Theme CSS Injection
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Sidebar glassmorphism styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Brand Header Box */
+    .brand-box {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    
+    .brand-title {
+        font-size: 20px;
+        font-weight: 700;
+        background: linear-gradient(90deg, #818CF8 0%, #C084FC 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .brand-subtitle {
+        font-size: 12px;
+        color: #94A3B8;
+        margin-top: 4px;
+        font-weight: 400;
+    }
+    
+    /* Status Badge Pill */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #4ADE80;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+        margin-top: 8px;
+    }
+
+    .pulse-dot {
+        width: 7px;
+        height: 7px;
+        background-color: #22C55E;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #22C55E;
+    }
+    
+    /* Sidebar Navigation Options Styling */
+    div[data-testid="stSidebar"] div.stRadio > label {
+        display: none;
+    }
+
+    div[data-testid="stSidebar"] div.stRadio > div {
+        gap: 8px;
+    }
+    
+    div[data-testid="stSidebar"] div.stRadio > div > label {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: #E2E8F0;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        display: flex;
+        align-items: center;
+    }
+    
+    div[data-testid="stSidebar"] div.stRadio > div > label:hover {
+        background: rgba(99, 102, 241, 0.12);
+        border-color: rgba(99, 102, 241, 0.4);
+        color: #FFFFFF;
+        transform: translateX(4px);
+    }
+    
+    /* Active Radio Item */
+    div[data-testid="stSidebar"] div.stRadio > div > label[data-checked="true"] {
+        background: linear-gradient(90deg, rgba(99, 102, 241, 0.25) 0%, rgba(168, 85, 247, 0.15) 100%);
+        border: 1px solid #6366F1;
+        border-left: 4px solid #818CF8;
+        color: #FFFFFF;
+        font-weight: 600;
+        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Sidebar Footer Info Card */
+    .sidebar-footer {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 30px;
+        font-size: 11px;
+        color: #64748B;
+    }
+    
+    .metric-value-highlight {
+        color: #38BDF8;
+        font-weight: 600;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 
 @st.cache_data
@@ -41,21 +171,41 @@ except Exception as e:
     st.error(f"Model assets not found or error loading: {e}. Run `python run_pipeline.py` first.")
     st.stop()
 
-st.sidebar.title("🛡️ ReturnShield AI")
-st.sidebar.caption("Enterprise Return Abuse Risk & Action Agent")
-page = st.sidebar.radio(
-    "Navigate", 
-    [
-        "Operations Overview", 
-        "Return Investigation", 
-        "Abuse Ring Network", 
-        "Model Performance & Cost",
-        "Upload Data & REST API Sandbox"
-    ]
-)
+# Styled Sidebar Brand Header
+with st.sidebar:
+    st.markdown("""
+        <div class="brand-box">
+            <div class="brand-title">🛡️ ReturnShield AI</div>
+            <div class="brand-subtitle">Cost-Sensitive Return Abuse Risk Agent</div>
+            <div class="status-pill">
+                <span class="pulse-dot"></span>
+                <span>SYSTEM ACTIVE • v1.0</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-if page == "Operations Overview":
-    st.title("🛡️ ReturnShield Operations")
+    page = st.radio(
+        "Navigation", 
+        [
+            "📊  Operations Overview", 
+            "🔍  Return Investigator", 
+            "🕸️  Abuse Ring Explorer", 
+            "📈  Model Evaluation & ROI",
+            "📥  Upload Data & API Sandbox"
+        ]
+    )
+
+    # Sidebar Quick Info Footer Card
+    st.markdown("""
+        <div class="sidebar-footer">
+            <div>⚡ <b>Latency:</b> <span class="metric-value-highlight">11.91 ms (p50)</span></div>
+            <div style="margin-top: 4px;">🎯 <b>Policy:</b> Cost-Optimized (3-Tier)</div>
+            <div style="margin-top: 4px;">🚀 <b>API Server:</b> FastAPI Port 8000</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+if page == "📊  Operations Overview":
+    st.title("🛡️ ReturnShield Operations Overview")
     st.caption("Real-time risk scoring & evidence-backed action recommendations on held-out test evaluation period.")
     
     total = len(predictions)
@@ -119,7 +269,7 @@ if page == "Operations Overview":
         }
     )
 
-elif page == "Return Investigation":
+elif page == "🔍  Return Investigator":
     st.title("🔍 Single Return Investigation")
     st.caption("Deep-dive into return signals, SHAP risk factors, and AI operational recommendations.")
     
@@ -185,7 +335,7 @@ elif page == "Return Investigation":
         with st.expander("✉️ View Draft Customer Communication", expanded=True):
             st.code(agent_resp['customer_message'], language="markdown")
 
-elif page == "Abuse Ring Network":
+elif page == "🕸️  Abuse Ring Explorer":
     st.title("🕸️ Abuse Ring & Cluster Explorer")
     st.caption("Network analysis identifying coordinated multi-account abuse across shared devices, addresses, and payment fingerprints.")
     
@@ -229,7 +379,7 @@ elif page == "Abuse Ring Network":
             "🟠 **Orange Diamond:** Shared Device, Address, or Payment Infrastructure"
         )
 
-elif page == "Model Performance & Cost":
+elif page == "📈  Model Evaluation & ROI":
     st.title("📈 Model Evaluation & Business Loss Analysis")
     st.caption("Strict temporal evaluation on held-out test dataset (20% chronological split).")
     
