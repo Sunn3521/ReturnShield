@@ -411,43 +411,133 @@ else: # Upload Data & REST API Sandbox
     st.markdown("---")
     
     st.subheader("3. Custom Merchant Dataset Management & Batch Processor")
-    
+
+    # ---------- Active dataset status always shown at top ----------
     if st.session_state["is_custom"]:
-        st.success(f"📂 **Active Custom Dataset:** `{st.session_state['dataset_name']}` ({len(st.session_state['active_predictions']):,} records scored & active across all dashboard tabs)")
-        st.dataframe(st.session_state["active_predictions"][["return_id", "customer_id", "order_value", "risk_probability", "decision"]].head(100), use_container_width=True)
-        
+        st.success(f"📂 **Active Dataset:** `{st.session_state['dataset_name']}` — {len(st.session_state['active_predictions']):,} records scored & active across all dashboard tabs")
+        active_df = st.session_state["active_predictions"]
         col_export, col_reset = st.columns([1, 1])
-        csv_export = st.session_state["active_predictions"].to_csv(index=False).encode('utf-8')
-        col_export.download_button("📥 Download Scored CSV Report", csv_export, "scored_returns_returnshield.csv", "text/csv")
-        if col_reset.button("🔄 Deactivate & Re-upload New Dataset"):
+        csv_export = active_df.to_csv(index=False).encode("utf-8")
+        col_export.download_button("📥 Download Scored CSV Report", csv_export, "scored_returns_returnshield.csv", "text/csv", key="dl_active")
+        if col_reset.button("🔄 Deactivate & Reset to Default Dataset"):
             st.session_state["active_predictions"] = default_predictions.copy()
             st.session_state["active_features"] = default_features.copy()
             st.session_state["dataset_name"] = "Default Evaluation Dataset (2,000 Returns)"
             st.session_state["is_custom"] = False
             st.rerun()
+        with st.expander("Preview Scored Records (first 100)", expanded=False):
+            disp_cols = [c for c in ["return_id", "customer_id", "order_value", "risk_probability", "decision", "return_reason"] if c in active_df.columns]
+            st.dataframe(active_df[disp_cols].head(100), use_container_width=True, hide_index=True)
 
-    st.markdown("##### Upload New Dataset")
-    uploaded_file = st.file_uploader("Upload custom `returns.csv` feature dataset", type=["csv"], key="custom_csv_uploader")
-    if uploaded_file is not None:
-        try:
-            custom_df = pd.read_csv(uploaded_file)
-            st.info(f"Loaded file `{uploaded_file.name}` ({len(custom_df):,} records). Click button below to score and activate across all tabs:")
-            
+    st.markdown("---")
+
+    # ---------- Input source tabs ----------
+    data_tab1, data_tab2 = st.tabs(["📁 Upload CSV File", "🌐 Connect Live Transaction Server"])
+
+    # ---- Tab 1: CSV Upload ----
+    with data_tab1:
+        st.markdown("Upload a merchant returns CSV dataset to score and activate across all dashboard tabs.")
+        uploaded_file = st.file_uploader("Upload `returns.csv` feature dataset", type=["csv"], key="custom_csv_uploader")
+
+        if uploaded_file is not None:
+            preview_df = pd.read_csv(uploaded_file)
+            st.info(f"Loaded **`{uploaded_file.name}`** — {len(preview_df):,} records ready to score.")
+            st.dataframe(preview_df.head(5), use_container_width=True, hide_index=True)
+
             if st.button("🚀 Score & Activate Custom Dataset Across All Tabs", key="btn_score_activate"):
-                with st.spinner(f"Scoring {len(custom_df):,} records through ReturnShield inference engine..."):
-                    probs_custom = predict_bundle(bundle, custom_df)
-                    custom_df["risk_probability"] = probs_custom
-                    custom_df["decision"] = np.where(probs_custom < opt_result["verify_threshold"], "AUTO_APPROVE", np.where(probs_custom < opt_result["review_threshold"], "VERIFY", "MANUAL_REVIEW"))
-                    custom_df["merchant_loss"] = np.where(custom_df["decision"] == "AUTO_APPROVE", custom_df["risk_probability"] * 2000.0, np.where(custom_df["decision"] == "VERIFY", 40.0, 60.0))
-                    
-                    # Activate globally for all tabs
-                    st.session_state["active_predictions"] = custom_df.copy()
-                    st.session_state["active_features"] = custom_df.copy()
-                    st.session_state["dataset_name"] = f"{uploaded_file.name} ({len(custom_df):,} Returns)"
+                with st.spinner(f"Scoring {len(preview_df):,} records through ReturnShield inference engine..."):
+                    probs_custom = predict_bundle(bundle, preview_df)
+                    preview_df["risk_probability"] = probs_custom
+                    preview_df["decision"] = np.where(
+                        probs_custom < opt_result["verify_threshold"], "AUTO_APPROVE",
+                        np.where(probs_custom < opt_result["review_threshold"], "VERIFY", "MANUAL_REVIEW")
+                    )
+                    preview_df["merchant_loss"] = np.where(
+                        preview_df["decision"] == "AUTO_APPROVE", preview_df["risk_probability"] * 2000.0,
+                        np.where(preview_df["decision"] == "VERIFY", 40.0, 60.0)
+                    )
+                    # Activate globally for all tabs immediately
+                    st.session_state["active_predictions"] = preview_df.copy()
+                    st.session_state["active_features"] = preview_df.copy()
+                    st.session_state["dataset_name"] = f"{uploaded_file.name} ({len(preview_df):,} Returns)"
                     st.session_state["is_custom"] = True
-                    st.rerun()
-        except Exception as err:
-            st.error(f"Error processing custom file: {err}")
+
+                st.success(f"✅ Scored & activated {len(preview_df):,} records across all dashboard tabs!")
+
+                # Show scored preview and download IMMEDIATELY without rerun
+                disp_cols = [c for c in ["return_id", "customer_id", "order_value", "risk_probability", "decision", "return_reason"] if c in preview_df.columns]
+                st.dataframe(preview_df[disp_cols].head(100), use_container_width=True, hide_index=True)
+                csv_dl = preview_df.to_csv(index=False).encode("utf-8")
+                st.download_button("📥 Download Scored CSV", csv_dl, "scored_returns_returnshield.csv", "text/csv", key="dl_scored_inline")
+                st.caption("Switch to any other tab in the navigation to see the data reflected across all dashboards.")
+
+    # ---- Tab 2: Live Transaction Server ----
+    with data_tab2:
+        st.markdown("Connect to a live transaction REST API server to pull and score real-time return events.")
+
+        with st.form("live_server_form"):
+            st.markdown("**Server Connection Settings**")
+            srv_col1, srv_col2 = st.columns([2, 1])
+            server_url = srv_col1.text_input("API Base URL", value="http://localhost:8000", placeholder="https://your-ecommerce-api.com")
+            endpoint = srv_col1.text_input("Returns Endpoint Path", value="/api/v1/returns", placeholder="/api/v1/returns")
+            auth_header = srv_col2.text_input("Authorization Header (optional)", placeholder="Bearer <token>", type="password")
+            fetch_limit = srv_col2.number_input("Max Records to Fetch", min_value=10, max_value=50000, value=500, step=100)
+            submitted = st.form_submit_button("🔌 Connect & Fetch Live Transactions")
+
+        if submitted:
+            full_url = server_url.rstrip("/") + endpoint
+            headers = {"Authorization": auth_header} if auth_header.strip() else {}
+            headers["Content-Type"] = "application/json"
+            try:
+                import requests
+                with st.spinner(f"Connecting to `{full_url}`..."):
+                    resp = requests.get(full_url, headers=headers, params={"limit": fetch_limit}, timeout=10)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if isinstance(data, list):
+                        live_df = pd.DataFrame(data)
+                    elif isinstance(data, dict):
+                        records = data.get("data", data.get("returns", data.get("results", list(data.values())[0] if data else [])))
+                        live_df = pd.DataFrame(records)
+                    else:
+                        st.error("Unexpected API response format.")
+                        live_df = None
+
+                    if live_df is not None and len(live_df) > 0:
+                        st.success(f"Fetched {len(live_df):,} live transactions from `{full_url}`")
+                        with st.spinner(f"Scoring {len(live_df):,} live transactions..."):
+                            probs_live = predict_bundle(bundle, live_df)
+                            live_df["risk_probability"] = probs_live
+                            live_df["decision"] = np.where(
+                                probs_live < opt_result["verify_threshold"], "AUTO_APPROVE",
+                                np.where(probs_live < opt_result["review_threshold"], "VERIFY", "MANUAL_REVIEW")
+                            )
+                            live_df["merchant_loss"] = np.where(
+                                live_df["decision"] == "AUTO_APPROVE", live_df["risk_probability"] * 2000.0,
+                                np.where(live_df["decision"] == "VERIFY", 40.0, 60.0)
+                            )
+                            st.session_state["active_predictions"] = live_df.copy()
+                            st.session_state["active_features"] = live_df.copy()
+                            st.session_state["dataset_name"] = f"Live Server ({len(live_df):,} Returns)"
+                            st.session_state["is_custom"] = True
+
+                        st.success(f"✅ Scored & activated {len(live_df):,} live transactions across all tabs!")
+                        disp_cols = [c for c in ["return_id", "customer_id", "order_value", "risk_probability", "decision"] if c in live_df.columns]
+                        st.dataframe(live_df[disp_cols].head(100), use_container_width=True, hide_index=True)
+                        csv_live = live_df.to_csv(index=False).encode("utf-8")
+                        st.download_button("📥 Download Scored Live Data", csv_live, "live_scored_returns.csv", "text/csv", key="dl_live")
+                    else:
+                        st.warning("Connected successfully but received no records.")
+                elif resp.status_code == 401:
+                    st.error("Authentication failed (401). Please check your Authorization header.")
+                elif resp.status_code == 404:
+                    st.error(f"Endpoint not found (404): `{full_url}`")
+                else:
+                    st.error(f"Server returned status {resp.status_code}: {resp.text[:300]}")
+            except Exception as conn_err:
+                st.warning(f"Could not connect to live server: `{conn_err}`")
+                st.info("Make sure the server is running and accessible. You can test using the ReturnShield FastAPI server at `http://localhost:8000`.")
 
     st.markdown("---")
     
