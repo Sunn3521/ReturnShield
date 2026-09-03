@@ -1,0 +1,69 @@
+2026-08-28 22:33:51.792 Uvicorn server started on 127.0.0.1:8501
+
+  You can now view your Streamlit app in your browser.
+
+  URL: http://127.0.0.1:8501
+
+  Help agents write better Streamlit apps?
+  Install the official Streamlit skills by running streamlit skills in your terminal.
+
+2026-08-28 22:34:08.576 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-28 22:34:08.803 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-28 22:34:09.250 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
++------------------------- Traceback (most recent call last) --------------------------+
+| C:\Users\sobha\AppData\Roaming\Python\Python312\site-packages\streamlit\runtime\scri |
+| ptrunner\exec_code.py:136 in exec_func_with_error_handling                           |
+|                                                                                      |
+| C:\Users\sobha\AppData\Roaming\Python\Python312\site-packages\streamlit\runtime\scri |
+| ptrunner\script_runner.py:837 in code_to_exec                                        |
+|                                                                                      |
+| C:\Users\sobha\OneDrive\Desktop\ReturnShield_live_kpi_v9\app.py:830 in <module>      |
+|                                                                                      |
+|    827                                                                               |
+|    828 # Static page chrome is rendered once. Only live data components below are re |
+|    829 if page == "AI Chat":                                                         |
+| >  830     _render_chat()                                                            |
+|    831                                                                               |
+|    832 elif page == "Operations Overview":                                           |
+|    833     st.title("ReturnShield Operations Overview")                              |
+|                                                                                      |
+| C:\Users\sobha\OneDrive\Desktop\ReturnShield_live_kpi_v9\app.py:822 in _render_chat  |
+|                                                                                      |
+|    819         if isinstance(res.get("data"), pd.DataFrame) and not res["data"].empt |
+|    820             msg["table"] = res["data"].head(100).to_dict("records")           |
+|    821         st.session_state["chat_messages"].append(msg)                         |
+| >  822         if res.get("action", {}).get("type") == "open_investigator":          |
+|    823             st.rerun()                                                        |
+|    824     if st.session_state.get("chat_export_blob"):                              |
+|    825         st.download_button("Download Live CSV", st.session_state["chat_export |
++--------------------------------------------------------------------------------------+
+AttributeError: 'NoneType' object has no attribute 'get'
+2026-08-28 22:35:00.959 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-28 22:35:01.135 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-28 22:35:01.157 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+  Stopping...
+^C
