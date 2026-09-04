@@ -2,7 +2,60 @@
 
 **Cost-sensitive return-abuse risk and response agent for merchants.**
 
-ReturnShield helps merchants reduce losses from abusive returns while minimizing unnecessary customer friction. It evaluates return requests using point-in-time behavioral signals, applies a cost-sensitive policy to determine the appropriate operational action, and provides an AI-assisted operations interface.
+ReturnShield helps merchants reduce losses from abusive returns while minimizing unnecessary customer friction. It evaluates return requests using point-in-time behavioral signals, applies a cost-sensitive policy engine, performs graph-based coordinated-account detection, and exposes decisions through an AI chat interface backed by deterministic APIs.
+
+---
+
+## 📊 Results at a Glance
+
+### Held-Out Test Metrics (Synthetic Dataset)
+
+| Metric | Result |
+|---|---:|
+| PR-AUC | 0.2007 |
+| ROC-AUC | 0.7072 |
+| Precision | 1.0000 |
+| Recall | 0.0133 |
+| F1 Score | 0.0263 |
+| Brier Score | 0.0445 |
+
+### Business Evaluation
+
+The evaluation uses a cost-sensitive decision policy where:
+
+- False Positive cost = ₹250
+- False Negative cost = ₹2,000
+- Verification cost = ₹100
+
+The policy is designed to minimize expected merchant loss while controlling unnecessary customer friction.
+
+### Model Interpretation
+
+The current model is deliberately operated at a **conservative decision threshold**.
+
+This produces very high precision but low recall, meaning the system prioritizes avoiding unnecessary customer friction and false accusations over attempting to catch every abusive return.
+
+This is a **prototype operating point** rather than a claim of production-ready fraud detection performance.
+
+---
+
+## 🧠 Why ReturnShield?
+
+Traditional return systems often treat every return independently.
+
+ReturnShield combines:
+
+- **Point-in-time behavioral features** — strict temporal ordering to prevent data leakage
+- **Cost-sensitive risk decisions** — optimization based on merchant financial costs, not classification accuracy
+- **Calibrated probability estimates** — reliable risk scores for policy thresholds
+- **Explainable AI** — SHAP-based feature attribution for each prediction
+- **Coordinated-account graph analysis** — NetworkX-based detection of suspicious relationships
+- **Real-time transaction monitoring** — continuous live transaction processing and risk scoring
+- **AI-assisted investigation** — ChatGPT-style interface over deterministic ReturnShield APIs
+- **Multiple AI providers** — Gemini, Groq, OpenRouter, Hugging Face, Ollama, OpenAI
+- **Human-in-the-loop review** — three-tier decision framework instead of binary approve/reject
+
+This allows merchants to move from simple rule-based return processing toward risk-aware operational decision making.
 
 ---
 
@@ -10,7 +63,7 @@ ReturnShield helps merchants reduce losses from abusive returns while minimizing
 
 ReturnShield is an AI-powered merchant risk management system designed to reduce financial losses caused by abusive returns while minimizing unnecessary friction for legitimate customers.
 
-The system evaluates each return request using information available at the time the return request is submitted. It estimates the probability of an abusive return, calculates the expected merchant loss, and applies a cost-sensitive policy to determine the appropriate operational action.
+The system evaluates each return request using information available at the time the return request is submitted. It estimates the probability of an abusive return, calculates the expected merchant loss, and converts that estimate into an operational action.
 
 ReturnShield is designed around three operational decisions:
 
@@ -97,6 +150,28 @@ The product also provides:
 * Multi-provider AI support
 * Right-side AI Settings panel
 * General-purpose AI conversation plus ReturnShield-specific actions
+
+---
+
+## 🔬 Technical Highlights
+
+### 1. Point-in-Time Feature Engineering
+Features are generated only from information available before the return decision, reducing temporal leakage and enabling realistic evaluation.
+
+### 2. Cost-Sensitive Decision Making
+The system optimizes decisions around expected merchant loss rather than relying only on classification accuracy. Thresholds are selected using explicit business costs.
+
+### 3. Probability Calibration
+Predicted probabilities are calibrated using validation data before being used by the decision policy, ensuring the risk score is interpretable.
+
+### 4. Coordinated Account Detection
+NetworkX is used to identify potentially coordinated behavior across accounts by analyzing shared devices, addresses, and payment fingerprints.
+
+### 5. Explainable Decisions
+SHAP explanations expose the features contributing to an individual risk prediction, making decisions understandable to merchants.
+
+### 6. AI Agent with Guardrails
+LLMs are used as a reasoning interface over deterministic ReturnShield APIs rather than being allowed to directly override risk decisions. The AI model cannot override the policy layer.
 
 ---
 
@@ -404,7 +479,7 @@ The held-out test set is reserved for final evaluation.
 
 ---
 
-## Safety / Defense-Only Scope
+## 🔐 Safety / Defense-Only Scope
 
 ReturnShield is designed strictly for loss prevention.
 
@@ -1033,48 +1108,20 @@ The system supports multiple providers including Gemini, Groq, OpenRouter, Huggi
 
 ---
 
-## Technology Stack
+## 🛠️ Tech Stack
 
-### Frontend
-
-* Streamlit
-* Plotly
-* HTML
-* CSS
-* JavaScript
-
-### Backend
-
-* FastAPI
-* Uvicorn
-* Python
-
-### Machine Learning
-
-* scikit-learn
-* XGBoost
-* SHAP
-* NumPy
-* Pandas
-
-### Graph Analysis
-
-* NetworkX
-
-### Data Storage
-
-* CSV
-* Parquet
-* JSONL
-
-### AI
-
-* Google Gemini
-* Groq
-* OpenRouter
-* Hugging Face
-* Ollama
-* OpenAI
+| Layer | Technology |
+|---|---|
+| Frontend | Streamlit |
+| Backend | FastAPI |
+| ML | Scikit-learn, XGBoost |
+| Explainability | SHAP |
+| Graph Analysis | NetworkX |
+| Data Processing | Pandas, NumPy |
+| Visualization | Plotly |
+| API Server | Uvicorn |
+| AI Agent | ReturnShield Agent API |
+| AI Providers | Gemini, Groq, OpenRouter, Hugging Face, Ollama, OpenAI |
 
 ---
 
@@ -1449,6 +1496,19 @@ returnshield/
 
 ---
 
+## ⚠️ Known Limitations
+
+- The current dataset is synthetic.
+- Real-world merchant integrations are not included.
+- Model performance may change substantially on real merchant populations.
+- The current class distribution is highly imbalanced (96.5% legitimate, 3.5% abusive).
+- Coordinated-account detection identifies suspicious relationships, not confirmed fraud.
+- AI provider availability depends on the configured provider/API.
+- The current operating point prioritizes precision over recall as a design choice.
+- Production deployment would require authentication, authorization, secrets management, observability, rate limiting, and merchant-specific model calibration.
+
+---
+
 ## Important Demo Note
 
 All default records, live/demo transactions, outcomes, and reported model metrics are synthetic unless the system is connected to an external merchant data source.
@@ -1479,24 +1539,6 @@ Productionization would require:
 * Threshold governance
 
 The current implementation is primarily a hackathon/prototype system.
-
----
-
-## Limitations
-
-The default model is trained and evaluated on synthetic data.
-
-Synthetic results cannot establish real-world fraud prevalence.
-
-Business-cost assumptions are illustrative and should be replaced with merchant-specific values.
-
-The coordinated-account graph identifies suspicious relationships but does not prove fraud.
-
-Free AI provider tiers are subject to provider-specific quotas and policies.
-
-Local AI models depend on the hardware available on the demonstration machine.
-
-Real merchant deployment would require additional security, governance, monitoring, and validation.
 
 ---
 
@@ -1651,7 +1693,7 @@ Potential future development areas include:
 
 ## Core Design Principle
 
-> **Predict risk with machine learning, make the business decision with an explicit cost-sensitive policy, and use AI to understand questions, retrieve relevant ReturnShield information, and communicate the result.**
+> **Predict risk with machine learning, make the business decision with an explicit cost-sensitive policy, and use AI to understand questions, retrieve relevant ReturnShield information, and communicate findings.**
 
 This keeps ReturnShield measurable, auditable, operationally useful, and defense-only.
 
