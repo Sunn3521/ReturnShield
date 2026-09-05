@@ -34,6 +34,8 @@ _EVENT_COUNTER = 0
 _REGIME = "baseline"
 _REGIME_STARTED_AT = time.monotonic()
 _STARTED = False
+# Process-persistent cumulative counters. These survive Streamlit page navigation.
+_CUMULATIVE_COUNTS = {"total": 0, "AUTO_APPROVE": 0, "VERIFY": 0, "MANUAL_REVIEW": 0, "HIGH_RISK": 0}
 _BUNDLE = None
 _POLICY = None
 
@@ -222,13 +224,26 @@ def stop_generator():
     _STARTED = False
 
 
+def _record_event(event: dict[str, Any]) -> None:
+    """Persist and add one event while updating process-persistent cumulative counters."""
+    _persist_event(event)
+    with _LOCK:
+        _EVENTS.appendleft(event)
+        _CUMULATIVE_COUNTS["total"] += 1
+        decision = event.get("decision", "AUTO_APPROVE")
+        if decision in ("AUTO_APPROVE", "VERIFY", "MANUAL_REVIEW"):
+            _CUMULATIVE_COUNTS[decision] += 1
+        try:
+            if float(event.get("risk_probability", 0)) >= float(_POLICY["review_threshold"]):
+                _CUMULATIVE_COUNTS["HIGH_RISK"] += 1
+        except Exception:
+            pass
+
+
 def _loop():
     while not _GENERATOR_STOP.is_set():
         try:
-            event = _generate_one()
-            _persist_event(event)
-            with _LOCK:
-                _EVENTS.appendleft(event)
+            _record_event(_generate_one())
         except Exception:
             pass
         time.sleep(1.0 / max(_GENERATOR_RATE, 0.2))
@@ -238,18 +253,26 @@ def generate_now(count: int = 1) -> list[dict[str, Any]]:
     out = []
     for _ in range(max(1, min(int(count), 1000))):
         event = _generate_one()
-        _persist_event(event)
-        with _LOCK:
-            _EVENTS.appendleft(event)
+        _record_event(event)
         out.append(event)
     return out
 
 
 def get_status() -> dict[str, Any]:
     with _LOCK:
-        total = len(_EVENTS)
+        buffered = len(_EVENTS)
         latest = _EVENTS[0]["generated_at"] if _EVENTS else None
-    return {"running": _STARTED, "rate_per_second": _GENERATOR_RATE, "buffered_records": total, "latest_generated_at": latest, "regime": _REGIME, "event_sequence": _EVENT_COUNTER}
+        cumulative = dict(_CUMULATIVE_COUNTS)
+    return {
+        "running": _STARTED,
+        "rate_per_second": _GENERATOR_RATE,
+        "buffered_records": buffered,
+        "cumulative_records": cumulative.get("total", 0),
+        "cumulative_counts": cumulative,
+        "latest_generated_at": latest,
+        "regime": _REGIME,
+        "event_sequence": _EVENT_COUNTER,
+    }
 
 
 def list_events(limit: int = 100, offset: int = 0, search: str = "", before: str | None = None, after: str | None = None) -> tuple[list[dict], int]:

@@ -469,7 +469,7 @@ function ensurePie(){{const host=document.getElementById('pie_chart');if(documen
 function renderPie(rows){{ensurePie();const c={{AUTO_APPROVE:0,VERIFY:0,MANUAL_REVIEW:0}};for(const x of rows){{const a=x.decision||'AUTO_APPROVE';if(c[a]!==undefined)c[a]++;}}const total=Math.max(1,c.AUTO_APPROVE+c.VERIFY+c.MANUAL_REVIEW);let a0=0;for(const k of ['AUTO_APPROVE','VERIFY','MANUAL_REVIEW']){{const da=c[k]/total*360,e=document.getElementById('ps_'+k);e.setAttribute('d',piePath(150,135,95,a0,a0+da));e.setAttribute('fill',k==='AUTO_APPROVE'?'#38A169':k==='VERIFY'?'#DD6B20':'#E53E3E');a0+=da;}}}}
 function ensureTable(){{const host=document.getElementById('table_wrap');if(document.getElementById('ops_table'))return;const t=document.createElement('table');t.id='ops_table';t.innerHTML='<thead><tr><th>Return ID</th><th>Customer</th><th>Order Value</th><th>Risk</th><th>Decision</th><th>Reason</th></tr></thead><tbody></tbody>';host.appendChild(t);for(let i=0;i<12;i++){{const tr=t.tBodies[0].insertRow();for(let j=0;j<6;j++)tr.insertCell();}}}}
 function renderTable(rows){{ensureTable();const top=[...rows].sort((a,b)=>Number(b.risk_probability||0)-Number(a.risk_probability||0)).slice(0,12),tb=document.getElementById('ops_table').tBodies[0];for(let i=0;i<tb.rows.length;i++){{const tr=tb.rows[i],x=top[i];tr.style.display=x?'table-row':'none';if(!x)continue;const p=Number(x.risk_probability||0),d=x.decision||'AUTO_APPROVE';tr.cells[0].textContent=x.return_id||'—';tr.cells[1].textContent=x.customer_id||'—';tr.cells[2].textContent='₹'+Number(x.order_value||0).toLocaleString();tr.cells[3].textContent=(p*100).toFixed(1)+'%';tr.cells[3].style.background=riskBg(p);tr.cells[3].style.color=riskFg(p);tr.cells[4].textContent=d.replace('_',' ');tr.cells[4].style.background=d==='MANUAL_REVIEW'?'#FDECEC':d==='VERIFY'?'#FFF4DD':'#EAF7EE';tr.cells[4].style.color=d==='MANUAL_REVIEW'?'#B42318':d==='VERIFY'?'#9A5B00':'#146C2E';tr.cells[5].textContent=x.return_reason||'—';}}}}
-async function pull(){{try{{const r=await fetch(API_BASE+ENDPOINT+'?limit=1000&offset=0',{{headers:TOKEN?{{Authorization:TOKEN}}:{{}}}});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();const rows=Array.isArray(j.data)?j.data:[];if(!state.initialized){{state.seen=new Map(rows.map(x=>[String(x.return_id||''),x]));state.total=rows.length;state.auto=rows.filter(x=>(x.decision||'AUTO_APPROVE')==='AUTO_APPROVE').length;state.verify=rows.filter(x=>x.decision==='VERIFY').length;state.review=rows.filter(x=>x.decision==='MANUAL_REVIEW').length;state.high=rows.filter(x=>Number(x.risk_probability||0)>=T2).length;state.initialized=true;}}else{{for(const x of rows){{const id=String(x.return_id||'');if(id&&!state.seen.has(id)){{state.seen.set(id,x);state.total++;const d=x.decision||'AUTO_APPROVE';if(d==='AUTO_APPROVE')state.auto++;else if(d==='VERIFY')state.verify++;else if(d==='MANUAL_REVIEW')state.review++;if(Number(x.risk_probability||0)>=T2)state.high++;}}}}}}const current=[...state.seen.values()].sort((a,b)=>String(b.prediction_time||b.generated_at||'').localeCompare(String(a.prediction_time||a.generated_at||''))).slice(0,300);setText('k_total',state.total.toLocaleString());setText('k_auto',state.auto.toLocaleString());setText('k_verify',state.verify.toLocaleString());setText('k_review',state.review.toLocaleString());setText('k_high',state.high.toLocaleString());setText('meta','LIVE • '+current.length+' records in rolling window • Updated '+new Date().toLocaleTimeString());renderRisk(current);renderPie(current);renderTable(current);}}catch(e){{setText('meta','Live feed connection error: '+e.message);}}}}
+async function pull(){{try{{const headers=TOKEN?{{Authorization:TOKEN}}:{{}};const [r,s]=await Promise.all([fetch(API_BASE+ENDPOINT+'?limit=1000&offset=0',{{headers}}),fetch(API_BASE+'/api/v1/returns/stats',{{headers}})]);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();const status=s.ok?await s.json():{{}};const rows=Array.isArray(j.data)?j.data:[];const totals=status.cumulative_counts||{{}};if(!state.initialized){{state.seen=new Map(rows.map(x=>[String(x.return_id||''),x]));state.total=Number(status.cumulative_records||status.event_sequence||j.total||rows.length);state.auto=Number(totals.AUTO_APPROVE||rows.filter(x=>(x.decision||'AUTO_APPROVE')==='AUTO_APPROVE').length);state.verify=Number(totals.VERIFY||rows.filter(x=>x.decision==='VERIFY').length);state.review=Number(totals.MANUAL_REVIEW||rows.filter(x=>x.decision==='MANUAL_REVIEW').length);state.high=Number(totals.HIGH_RISK||rows.filter(x=>Number(x.risk_probability||0)>=T2).length);state.initialized=true;}}else{{for(const x of rows){{const id=String(x.return_id||'');if(id&&!state.seen.has(id))state.seen.set(id,x);}}if(status.cumulative_records!==undefined)state.total=Number(status.cumulative_records);if(totals.AUTO_APPROVE!==undefined)state.auto=Number(totals.AUTO_APPROVE);if(totals.VERIFY!==undefined)state.verify=Number(totals.VERIFY);if(totals.MANUAL_REVIEW!==undefined)state.review=Number(totals.MANUAL_REVIEW);if(totals.HIGH_RISK!==undefined)state.high=Number(totals.HIGH_RISK);}}const current=[...state.seen.values()].sort((a,b)=>String(b.prediction_time||b.generated_at||'').localeCompare(String(a.prediction_time||a.generated_at||''))).slice(0,300);setText('k_total',state.total.toLocaleString());setText('k_auto',state.auto.toLocaleString());setText('k_verify',state.verify.toLocaleString());setText('k_review',state.review.toLocaleString());setText('k_high',state.high.toLocaleString());setText('meta','LIVE • '+current.length+' records in rolling window • '+state.total.toLocaleString()+' total generated • Updated '+new Date().toLocaleTimeString());renderRisk(current);renderPie(current);renderTable(current);}}catch(e){{setText('meta','Live feed connection error: '+e.message);}}}}
 pull();setInterval(pull,1000);
 </script></body></html>"""
     components.html(html, height=height, scrolling=False)
@@ -629,11 +629,14 @@ else:
 
 
 def _render_investigator_dynamic(search: str, page_size: int, page_num: int):
-    predictions = st.session_state["active_predictions"]
-    features = st.session_state["active_features"]
+    predictions = ensure_live_columns(st.session_state["active_predictions"])
+    features = ensure_live_columns(st.session_state["active_features"])
     queue = predictions.copy()
     if queue.empty:
         queue = empty_prediction_frame()
+    # Older/static datasets may not contain prediction_time; normalize the schema
+    # before filtering/sorting so the investigator never crashes on page switches.
+    queue = ensure_live_columns(queue)
     if search:
         s = search.lower()
         queue = queue[
@@ -859,47 +862,34 @@ def _render_chat():
     """ChatGPT-style chat UI. Only the conversation pane scrolls."""
     st.markdown("""
     <style>
-      /* Chat page: no page-level scrolling; only the message pane scrolls. */
-      html:has(.rs-chat-page), body:has(.rs-chat-page) { overflow: hidden !important; }
-      .stApp:has(.rs-chat-page) { overflow: hidden !important; }
-      .main .block-container:has(.rs-chat-page) {
-        overflow: hidden !important;
-        max-height: 100vh !important;
-        height: 100vh !important;
-        padding-top: 1rem !important;
-        padding-bottom: 4.5rem !important;
-      }
-      .rs-chat-page { height: calc(100vh - 2rem); display:flex; flex-direction:column; overflow:hidden; }
-      .rs-chat-header { flex:0 0 auto; }
+      html:has(.rs-chat-page), body:has(.rs-chat-page) { overflow:hidden !important; background:#f7f7f8 !important; }
+      .stApp:has(.rs-chat-page) { overflow:hidden !important; background:#f7f7f8 !important; }
+      .main .block-container:has(.rs-chat-page) { overflow:hidden !important; max-height:100vh !important; height:100vh !important; padding:.55rem 1.2rem 4.7rem !important; max-width:1200px !important; }
+      .rs-chat-page { height:calc(100vh - 1.1rem); display:flex; flex-direction:column; overflow:hidden; }
+      .rs-chat-header { flex:0 0 auto; padding:3px 2px 12px; border-bottom:1px solid #e6e8eb; margin-bottom:12px; }
       .rs-chat-title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-      .rs-chat-title { font-size:1.7rem; font-weight:750; line-height:1.2; color:#0B1F33; }
-      .rs-chat-subtitle { color:#667085; font-size:.92rem; margin:3px 0 10px; }
-      .rs-chat-settings-card { background:#fff; border:1px solid #D9E2EA; border-radius:12px; padding:14px; position:fixed; right:1rem; top:5rem; width:min(360px, 34vw); max-height:calc(100vh - 7rem); overflow-y:auto; z-index:9998; box-shadow:0 10px 30px rgba(11,31,51,.12); }
+      .rs-chat-title { font-size:1.15rem; font-weight:650; line-height:1.25; color:#111827; letter-spacing:-.01em; }
+      .rs-chat-subtitle { color:#6b7280; font-size:.82rem; margin:3px 0 0; }
+      .rs-chat-settings-card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:15px; position:fixed; right:1.15rem; top:4.2rem; width:min(360px,34vw); max-height:calc(100vh - 6rem); overflow-y:auto; z-index:9998; box-shadow:0 18px 50px rgba(15,23,42,.14); }
       .rs-chat-settings-card::-webkit-scrollbar { width:6px; }
-      .rs-chat-settings-card::-webkit-scrollbar-thumb { background:#C8D1DA; border-radius:6px; }
-      .rs-chat-settings-title { font-size:1.05rem; font-weight:750; color:#0B1F33; margin-bottom:10px; }
-      .rs-chat-note { color:#667085; font-size:.86rem; text-align:center; padding:18px; }
-      [data-testid="stChatMessage"] { padding-top:8px !important; padding-bottom:8px !important; }
-      [data-testid="stChatInput"] { position:fixed !important; left:calc(var(--sidebar-width, 21rem) + 2rem); right:2rem; bottom:1rem; z-index:10000; }
-      /* The bordered Streamlit container used for messages is the only scrolling surface. */
+      .rs-chat-settings-card::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:8px; }
+      .rs-chat-settings-title { font-size:.98rem; font-weight:650; color:#111827; margin-bottom:8px; }
+      .rs-chat-note { color:#6b7280; font-size:.88rem; text-align:center; padding:34px 18px; }
+      [data-testid="stChatMessage"] { padding:11px 4px !important; margin:0 !important; border:0 !important; background:transparent !important; }
+      [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] { font-size:.94rem; line-height:1.62; }
+      [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background:#f1f2f4 !important; border-radius:14px !important; padding:11px 14px !important; margin:8px 4px !important; max-width:82%; margin-left:auto !important; }
+      [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) { max-width:92%; margin-right:auto !important; }
+      [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stChatMessageAvatarAssistant"] { background:#111827 !important; color:#fff !important; border-radius:8px !important; }
+      [data-testid="stDataFrame"] { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+      [data-testid="stChatInput"] { position:fixed !important; left:calc(var(--sidebar-width, 21rem) + 1.55rem); right:1.55rem; bottom:.9rem; z-index:10000; }
+      [data-testid="stChatInput"] > div { border-radius:16px !important; border:1px solid #d8dde3 !important; background:#fff !important; box-shadow:0 5px 20px rgba(15,23,42,.08) !important; }
+      [data-testid="stChatInput"] textarea { font-size:.94rem !important; }
       .rs-chat-conversation-wrapper { flex:1 1 auto; min-height:0; overflow:hidden; }
-      div[data-testid="stVerticalBlockBorderWrapper"]:has(.rs-chat-scroll-anchor) {
-        height:calc(100vh - 12rem) !important;
-        max-height:calc(100vh - 12rem) !important;
-        overflow-y:auto !important;
-        overflow-x:hidden !important;
-        border:1px solid #D9E2EA !important;
-        border-radius:12px !important;
-        background:#fff !important;
-        padding:4px 10px !important;
-      }
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.rs-chat-scroll-anchor) { height:calc(100vh - 10.2rem) !important; max-height:calc(100vh - 10.2rem) !important; overflow-y:auto !important; overflow-x:hidden !important; border:1px solid #e5e7eb !important; border-radius:16px !important; background:#fff !important; padding:8px 14px !important; }
       div[data-testid="stVerticalBlockBorderWrapper"]:has(.rs-chat-scroll-anchor)::-webkit-scrollbar { width:8px; }
-      div[data-testid="stVerticalBlockBorderWrapper"]:has(.rs-chat-scroll-anchor)::-webkit-scrollbar-thumb { background:#C8D1DA; border-radius:8px; }
-      @media (max-width:900px) {
-        .rs-chat-title { font-size:1.45rem; }
-        .rs-chat-settings-card { left:1rem; right:1rem; width:auto; }
-        [data-testid="stChatInput"] { left:1rem; right:1rem; }
-      }
+      div[data-testid="stVerticalBlockBorderWrapper"]:has(.rs-chat-scroll-anchor)::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:8px; }
+      .rs-chat-settings-card [data-testid="stSelectbox"] label, .rs-chat-settings-card [data-testid="stTextInput"] label { font-size:.78rem !important; color:#6b7280 !important; }
+      @media (max-width:900px) { .main .block-container:has(.rs-chat-page) { padding-left:.7rem !important; padding-right:.7rem !important; } .rs-chat-title { font-size:1.05rem; } .rs-chat-settings-card { left:.7rem; right:.7rem; width:auto; top:3.7rem; } [data-testid="stChatInput"] { left:.8rem; right:.8rem; } [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { max-width:92%; } }
     </style>
     """, unsafe_allow_html=True)
 
