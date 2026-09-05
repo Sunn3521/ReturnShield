@@ -2,3 +2,11 @@
 maxUploadSize = 1000
 enableCORS = false
 enableXsrfProtection = false
+
+[theme]
+base = "light"
+primaryColor = "#0076A8"
+backgroundColor = "#F6F8FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#12263A"
+font = "sans serif"

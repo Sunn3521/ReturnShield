@@ -43,7 +43,29 @@ def generate_agent_response(row: pd.Series, reasons: list[str]) -> dict:
                 contents=prompt,
                 config={"response_mime_type": "application/json"}
             )
-            return json.loads(response.text)
+            parsed = json.loads(response.text)
+            # Normalize provider output so the UI never receives missing/empty fields.
+            if not isinstance(parsed, dict):
+                raise ValueError("Provider returned a non-object response")
+            merchant_action = (
+                parsed.get("merchant_action")
+                or parsed.get("merchant_protocol")
+                or parsed.get("protocol")
+                or ""
+            )
+            customer_message = (
+                parsed.get("customer_message")
+                or parsed.get("customer_communication")
+                or parsed.get("customer_response")
+                or ""
+            )
+            summary = parsed.get("summary") or parsed.get("operational_summary") or ""
+            if summary and merchant_action and customer_message:
+                return {
+                    "summary": str(summary),
+                    "merchant_action": str(merchant_action),
+                    "customer_message": str(customer_message),
+                }
         except Exception:
             pass
 

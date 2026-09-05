@@ -1,37 +1,52 @@
 @echo off
-TITLE ReturnShield AI Agent Launcher
-echo ============================================================
-echo           RETURN SHIELD AI - RETURN ABUSE RISK AGENT
-echo ============================================================
+setlocal EnableExtensions EnableDelayedExpansion
+TITLE ReturnShield AI - Full Stack
+cd /d "%~dp0"
+set "PYTHONPATH=%cd%"
+set "API_PORT=8000"
+set "APP_PORT=8501"
 
-if exist "C:\Users\sobha\ReturnShield\app.py" (
-    cd /d "C:\Users\sobha\ReturnShield"
-) else (
-    cd /d "%~dp0"
+echo ============================================================
+echo              RETURNSHIELD AI - STARTUP
+echo ============================================================
+echo Project: %cd%
+echo.
+
+echo [1/4] Closing stale ReturnShield services on ports %API_PORT% and %APP_PORT%...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ports=@(%API_PORT%,%APP_PORT%); foreach($p in $ports){$c=Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue; foreach($x in $c){try{Stop-Process -Id $x.OwningProcess -Force -ErrorAction SilentlyContinue}catch{}}}" >nul 2>&1
+
+echo [2/4] Checking model assets...
+if not exist "%cd%\models\model_bundle.joblib" (
+  echo Model bundle missing. Running pipeline...
+  python run_pipeline.py
+  if errorlevel 1 (
+    echo [ERROR] Pipeline failed.
+    pause
+    exit /b 1
+  )
 )
 
-echo [1/3] Clearing previous processes on ports 8000 and 8501...
-powershell -Command "Get-Process -Id (Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force" >nul 2>&1
-powershell -Command "Get-Process -Id (Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force" >nul 2>&1
+echo [3/4] Starting FastAPI from THIS project folder...
+start "ReturnShield REST API" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 127.0.0.1 --port %API_PORT%"
+timeout /t 3 /nobreak >nul
 
-echo [2/3] Executing ReturnShield Pipeline ^& Model Training...
-set PYTHONPATH=%cd%
-python run_pipeline.py
-if %errorlevel% neq 0 (
-    echo [WARNING] Pipeline run encountered an issue, proceeding with existing assets...
+python -c "import urllib.request,sys,json; u='http://127.0.0.1:%API_PORT%/api/v1/meta'; d=json.load(urllib.request.urlopen(u,timeout=5)); assert d.get('live_returns_endpoint')=='/api/v1/returns'; print('[OK] Live API route verified:',d['live_returns_endpoint'])"
+if errorlevel 1 (
+  echo [ERROR] Live API self-check failed. The running API is not the expected ReturnShield build.
+  echo Open http://127.0.0.1:%API_PORT%/docs to inspect it.
+  pause
+  exit /b 1
 )
 
-echo [3/3] Launching FastAPI REST API ^& Streamlit Dashboard...
-start "ReturnShield REST API" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 0.0.0.0 --port 8000"
-timeout /t 2 >nul
-start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.port 8501 --server.maxUploadSize 1000"
+echo [4/4] Starting Streamlit dashboard...
+start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.address 127.0.0.1 --server.port %APP_PORT% --server.maxUploadSize 1000"
 
 echo.
 echo ============================================================
-echo [SUCCESS] ReturnShield AI Agent services are running!
-echo   - Streamlit Dashboard: http://localhost:8501
-echo   - FastAPI REST Server: http://localhost:8000
-echo   - API Documentation:   http://localhost:8000/docs
+echo [READY]
+echo Dashboard: http://127.0.0.1:%APP_PORT%
+echo API:       http://127.0.0.1:%API_PORT%
+echo API Docs:  http://127.0.0.1:%API_PORT%/docs
+echo Live API: http://127.0.0.1:%API_PORT%/api/v1/returns
 echo ============================================================
-echo Close the popup windows to stop services.
-pause
+endlocal

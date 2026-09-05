@@ -83,7 +83,7 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
         
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
-        line=dict(width=1.5, color='#4A5568'),
+        line=dict(width=1.2, color='#B8C6D1'),
         hoverinfo='none',
         mode='lines'
     )
@@ -108,7 +108,7 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
             ret = data.get("returns", 0)
             abu = data.get("abusive", 0)
             ref = data.get("refund", 0.0)
-            if abu > 0 or data.get("latent_type") in ("abusive", "coordinated"):
+            if abu > 0 or data.get("latent_type") in ("abusive", "coordinated") or float(data.get("risk", 0.0)) >= 0.68:
                 node_color.append("#E53E3E") # Crimson Red for high risk
             else:
                 node_color.append("#3182CE") # Blue for normal customer
@@ -126,13 +126,16 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
         text=[n for n in subG.nodes()],
         textposition="top center",
         hovertext=node_text,
+        textfont=dict(color="#23384D", size=10),
+        hovertemplate="%{hovertext}<extra></extra>",
+        hoverlabel=dict(bgcolor='#12263A', bordercolor='#2B455C', font=dict(color='white', size=12)),
         marker=dict(
             showscale=False,
             color=node_color,
             size=node_size,
             symbol=node_symbol,
             line_width=2,
-            line=dict(color='#1A202C')
+            line=dict(color='#FFFFFF')
         )
     )
     
@@ -144,8 +147,61 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
                     margin=dict(b=20,l=20,r=20,t=40),
                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    template="plotly_dark",
+                    template="plotly_white",
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)'
                  ))
     return fig
+
+
+def build_active_abuse_graph(data: pd.DataFrame, risk_threshold: float = 0.70, min_cluster_size: int = 2) -> tuple[nx.Graph, pd.DataFrame]:
+    """Build a graph from the currently active/live scored records.
+
+    Only high-risk records are included. Infrastructure IDs are intentionally non-sensitive
+    synthetic identifiers or merchant-provided pseudonymous identifiers.
+    """
+    required = {"customer_id", "device_id", "address_id", "payment_fingerprint"}
+    if not required.issubset(data.columns):
+        return nx.Graph(), pd.DataFrame()
+
+    df = data.copy()
+    # Keep all current records in the graph so shared infrastructure remains visible;
+    # risk is used to classify/highlight customers, not to delete their relationships.
+    G = nx.Graph()
+
+    for _, row in df.iterrows():
+        cid = str(row["customer_id"])
+        did = str(row["device_id"])
+        aid = str(row["address_id"])
+        pid = str(row["payment_fingerprint"])
+        risk = float(row.get("risk_probability", 0.0))
+        decision = str(row.get("decision", ""))
+        G.add_node(cid, type="customer", risk=risk, decision=decision, return_id=str(row.get("return_id", "")))
+        G.add_node(did, type="device")
+        G.add_node(aid, type="address")
+        G.add_node(pid, type="payment")
+        G.add_edge(cid, did, relation="uses_device")
+        G.add_edge(cid, aid, relation="ships_to")
+        G.add_edge(cid, pid, relation="pays_with")
+
+    clusters = []
+    for cluster_id, comp in enumerate(nx.connected_components(G)):
+        sg = G.subgraph(comp)
+        customers = [n for n, d in sg.nodes(data=True) if d.get("type") == "customer"]
+        if len(customers) >= min_cluster_size:
+            risks = [float(sg.nodes[n].get("risk", 0.0)) for n in customers]
+            clusters.append({
+                "cluster_id": f"LIVE_CLUSTER_{cluster_id:04d}",
+                "customer_count": len(customers),
+                "node_count": len(comp),
+                "avg_risk": float(np.mean(risks)) if risks else 0.0,
+                "max_risk": float(np.max(risks)) if risks else 0.0,
+                "high_risk_customers": int(sum(r >= risk_threshold for r in risks)),
+                "customers": customers,
+                "nodes": list(comp),
+            })
+
+    cdf = pd.DataFrame(clusters)
+    if not cdf.empty:
+        cdf = cdf.sort_values(["high_risk_customers", "avg_risk", "customer_count"], ascending=[False, False, False]).reset_index(drop=True)
+    return G, cdf
