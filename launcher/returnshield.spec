@@ -6,11 +6,13 @@
 # supervisor; the application ships as source + assets beside it and runs on
 # the machine's Python.
 
+from pathlib import Path
+
 a = Analysis(
     ['returnshield_launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('version_info.txt', '.')],
     hiddenimports=[],
     hookspath=[],
     runtime_hooks=[],
@@ -32,4 +34,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version=Path('version_info.txt'),
 )
