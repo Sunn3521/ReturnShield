@@ -354,8 +354,10 @@ echo ============================================================
 echo  ReturnShield self-test against %API%
 echo ============================================================
 "%RS_PY%" -c "import urllib.request,json; m=json.load(urllib.request.urlopen('%API%/api/v1/meta',timeout=10)); assert m.get('service')=='ReturnShield AI'; print('[OK] API identity:',m['service'],m['version'])" || goto :fail
-"%RS_PY%" -c "import urllib.request,json; s=json.load(urllib.request.urlopen('%API%/api/v1/returns/stats',timeout=10)); print('[OK] returns feed: running=%s buffer=%s seq=%s'%(s.get('running'),s.get('buffered_records'),s.get('event_sequence')))" || goto :fail
-"%RS_PY%" -c "import urllib.request,json,hmac,hashlib; body=json.dumps({'return_id':'R-VERIFY-1','order_id':'O-VERIFY','customer_id':'C-VERIFY','order_value':1000.0,'product_price':1000.0,'return_reason':'damaged'}).encode(); req=urllib.request.Request('%API%/api/v1/score',data=body,headers={'Content-Type':'application/json'}); r=json.load(urllib.request.urlopen(req,timeout=60)); assert 0.0<=r['risk_probability']<=1.0; print('[OK] score call:',r['return_id'],'risk=%.1f%%'%(r['risk_probability']*100),'decision=',r['decision'])" || goto :fail
+REM NB: no %-formatting in the embedded Python below. cmd.exe expands %s / %VAR%,
+REM which silently corrupts the one-liner (it used to fail with a SyntaxError).
+"%RS_PY%" -c "import urllib.request,json; s=json.load(urllib.request.urlopen('%API%/api/v1/returns/stats',timeout=10)); print('[OK] returns feed: running=',s.get('running'),'buffer=',s.get('buffered_records'),'seq=',s.get('event_sequence'))" || goto :fail
+"%RS_PY%" -c "import urllib.request,json,hmac,hashlib; body=json.dumps({'return_id':'R-VERIFY-1','order_id':'O-VERIFY','customer_id':'C-VERIFY','order_value':1000.0,'product_price':1000.0,'return_reason':'damaged'}).encode(); req=urllib.request.Request('%API%/api/v1/score',data=body,headers={'Content-Type':'application/json'}); r=json.load(urllib.request.urlopen(req,timeout=60)); assert 0.0<=r['risk_probability']<=1.0; print('[OK] score call:',r['return_id'],'risk=',round(r['risk_probability']*100,1),'decision=',r['decision'])" || goto :fail
 "%RS_PY%" -c "import urllib.request; urllib.request.urlopen('%UI%',timeout=15); print('[OK] dashboard responds')" || goto :fail
 echo ============================================================
 echo  ALL CHECKS PASSED
