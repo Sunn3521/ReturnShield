@@ -142,13 +142,19 @@ def endpoint_ready(url: str) -> bool:
         return False
 
 
-def wait_for(urls, deadline_seconds: int, label: str) -> bool:
+def wait_for(urls, deadline_seconds: int, label: str, procs=()) -> bool:
     """Poll every candidate URL until any of them answers. True as soon as one is.
 
     A list is accepted so a component that serves a health route before its root
     page (Streamlit's ``/_stcore/health`` is exactly that) still counts as ready.
     The heartbeat matters as much as the polling: a slow first start should read
     as progress rather than a hang.
+
+    ``procs`` short-circuits the wait when one of the children has already died.
+    Without it a process that exited on its first line (a bad argument, a missing
+    file) looked exactly like a slow start, and the launcher sat on the full
+    timeout before saying anything - which is how a dashboard that never started
+    produced a 7-minute silence and a "still starting" banner.
     """
     if isinstance(urls, str):
         urls = [urls]
@@ -159,6 +165,11 @@ def wait_for(urls, deadline_seconds: int, label: str) -> bool:
     deadline = started + deadline_seconds
     next_beat = started + 15
     while time.time() < deadline:
+        for proc in procs:
+            code = proc.poll()
+            if code is not None:
+                log(f"ERROR: {label} exited immediately (code {code}).")
+                return False
         for url in urls:
             if endpoint_ready(url):
                 log(f"{label} is ready after {time.time() - started:.0f}s.")
@@ -375,7 +386,7 @@ def ensure_assets() -> bool:
         return True
     log(f"Missing model assets: {', '.join(missing)}")
     return run_checked(
-        [find_python(), "run_pipeline.py"],
+        [find_python(), os.path.join(APP_ROOT, "run_pipeline.py")],
         "Building models with run_pipeline.py (one-time, several minutes)...",
     )
 
@@ -489,8 +500,9 @@ def main() -> int:
             if not wait_for(
                 [f"http://{API_HOST}:{api_port}/api/v1/meta",
                  f"http://{API_HOST}:{api_port}/api/v1/health"],
-                API_WAIT_SECONDS, "API",
+                API_WAIT_SECONDS, "API", procs=[api_proc],
             ):
+                log(f"       See {os.path.join(LOG_DIR, 'api.log')} for the reason.")
                 return 1
             if not identify_returnshield(API_HOST, api_port):
                 log("ERROR: something answered on the API port but it is not ReturnShield.")
@@ -501,8 +513,13 @@ def main() -> int:
 
         ui_log = open(os.path.join(LOG_DIR, "streamlit.log"), "ab")
         log(f"Starting dashboard on http://{UI_HOST}:{ui_port} ...")
+        # Absolute script path on purpose: the packaged delivery keeps the source
+        # in app/ while the assets sit beside the exe, so a bare "app.py" only
+        # resolves when the child's cwd happens to be app/. "File does not exist:
+        # app.py" from Streamlit is exactly that mistake, and it made the whole
+        # dashboard unreachable.
         ui_proc = subprocess.Popen(
-            [python, "-m", "streamlit", "run", "app.py",
+            [python, "-m", "streamlit", "run", os.path.join(APP_ROOT, "app.py"),
              "--server.address", UI_HOST, "--server.port", str(ui_port),
              "--server.headless", "true", "--server.maxUploadSize", "1000"],
             cwd=APP_ROOT, env=child_env(), stdout=ui_log, stderr=subprocess.STDOUT,
@@ -512,12 +529,17 @@ def main() -> int:
         # Streamlit answers /_stcore/health well before its root page finishes
         # the first render, so either endpoint counts as ready. A dashboard that
         # is merely slow must not tear down a healthy API, so a miss is a warning
-        # and the stack keeps running.
+        # and the stack keeps running - but a dashboard process that has ALREADY
+        # exited never will, and saying "READY" over it is worse than failing.
         dashboard_ready = wait_for(
             [f"http://{UI_HOST}:{ui_port}/",
              f"http://{UI_HOST}:{ui_port}/_stcore/health"],
-            UI_WAIT_SECONDS, "Dashboard",
+            UI_WAIT_SECONDS, "Dashboard", procs=[ui_proc],
         )
+        if ui_proc.poll() is not None:
+            log("ERROR: the dashboard process exited before it served the UI.")
+            log(f"       See {os.path.join(LOG_DIR, 'streamlit.log')} for the reason.")
+            return 1
         if not dashboard_ready:
             log("WARNING: the dashboard is taking longer than expected.")
             log("         The API is healthy and the dashboard normally appears")
