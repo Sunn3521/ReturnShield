@@ -8,4 +8,4 @@ run:
 	python run_pipeline.py
 
 app:
-	streamlit run app.py
+	streamlit run dashboard/app.py

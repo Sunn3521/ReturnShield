@@ -6,8 +6,9 @@ import pandas as pd
 import numpy as np
 
 from src.model import load_bundle, predict_bundle
+from src.paths import root as _project_root
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = _project_root()
 MODELS = ROOT / "models"
 
 

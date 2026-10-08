@@ -103,7 +103,7 @@ def enable_site_packages() -> None:
     A ``._pth`` file switches CPython into isolated mode, and that matters:
     isolated mode ignores ``PYTHONPATH``, which is exactly how the launcher
     normally exposes the application source. So ``Lib\\site-packages`` is listed
-    for the third-party packages, ``..\\app`` is listed so ``import src.api``
+    for the third-party packages, ``..\\app`` is listed so ``import api.main``
     still resolves no matter what the working directory is, and the bare
     ``import site`` line re-enables the site processing the embeddable build
     suppresses. All three are required; dropping any one breaks a different part.

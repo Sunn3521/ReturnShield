@@ -62,14 +62,14 @@ def app_dir() -> str:
 
 
 def source_root(install_root: str) -> str:
-    """The directory that actually contains src/api.py.
+    """The directory that actually contains api/main.py.
 
     The delivery keeps source under app/ so the top level stays readable;
-    running from a source checkout has src/ beside the launcher. Both layouts
+    running from a source checkout has api/ and dashboard/ beside the launcher. Both layouts
     must work from the same binary.
     """
     for candidate in (install_root, os.path.join(install_root, "app")):
-        if os.path.exists(os.path.join(candidate, "src", "api.py")):
+        if os.path.exists(os.path.join(candidate, "api", "main.py")):
             return candidate
     return install_root
 
@@ -337,7 +337,7 @@ def assets_root() -> str:
 ASSET_ROOT = assets_root()
 os.environ.setdefault("PYTHONPATH", APP_ROOT)
 #: Every module resolves assets through src/paths.py. PYTHONPATH/cwd point at
-#: the source (so `import src.api` works); RETURNSHIELD_HOME points at the
+#: the source (so `import api.main` works); RETURNSHIELD_HOME points at the
 #: assets (models/, data/, reports/) - in the packaged layout these differ.
 os.environ["RETURNSHIELD_HOME"] = ASSET_ROOT
 os.environ.setdefault("RETURNSHIELD_API_URL", f"http://{API_HOST}:{API_PORT}")
@@ -462,8 +462,8 @@ def main() -> int:
     python = find_python()
     log(f"Using interpreter: {python}")
 
-    if not os.path.exists(os.path.join(APP_ROOT, "src", "api.py")):
-        log("ERROR: src/api.py not found - the delivery folder is incomplete.")
+    if not os.path.exists(os.path.join(APP_ROOT, "api", "main.py")):
+        log("ERROR: api/api.py not found - the delivery folder is incomplete.")
         log("Expected it in either the install folder or its app/ subfolder.")
         return 1
     if not ensure_deps(python, install):
@@ -492,7 +492,7 @@ def main() -> int:
             api_log = open(os.path.join(LOG_DIR, "api.log"), "ab")
             log(f"Starting API on http://{API_HOST}:{api_port} ...")
             api_proc = subprocess.Popen(
-                [python, "-m", "uvicorn", "src.api:app",
+                [python, "-m", "uvicorn", "api.main:app",
                  "--host", API_HOST, "--port", str(api_port), "--log-level", "info"],
                 cwd=APP_ROOT, env=child_env(), stdout=api_log, stderr=subprocess.STDOUT,
             )
@@ -514,12 +514,13 @@ def main() -> int:
         ui_log = open(os.path.join(LOG_DIR, "streamlit.log"), "ab")
         log(f"Starting dashboard on http://{UI_HOST}:{ui_port} ...")
         # Absolute script path on purpose: the packaged delivery keeps the source
-        # in app/ while the assets sit beside the exe, so a bare "app.py" only
-        # resolves when the child's cwd happens to be app/. "File does not exist:
-        # app.py" from Streamlit is exactly that mistake, and it made the whole
-        # dashboard unreachable.
+        # under app/ while the assets sit beside the exe, so the script is given
+        # by absolute path. A bare "app.py" (or even "dashboard/app.py") only
+        # resolves when the child's cwd happens to be the right folder, and a
+        # "File does not exist" from Streamlit made the whole dashboard
+        # unreachable.
         ui_proc = subprocess.Popen(
-            [python, "-m", "streamlit", "run", os.path.join(APP_ROOT, "app.py"),
+            [python, "-m", "streamlit", "run", os.path.join(APP_ROOT, "dashboard", "app.py"),
              "--server.address", UI_HOST, "--server.port", str(ui_port),
              "--server.headless", "true", "--server.maxUploadSize", "1000"],
             cwd=APP_ROOT, env=child_env(), stdout=ui_log, stderr=subprocess.STDOUT,

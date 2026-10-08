@@ -58,8 +58,20 @@ def run(out_base="."):
     joblib.dump(baseline, models / "baseline_logistic.joblib")
     joblib.dump({"preprocessor": xpre, "model": xmodel, "kind": "xgb"}, models / "xgb_challenger.joblib")
     with open(models / "policy.json", "w", encoding="utf-8") as f:
+        previous = {}
+        if (models / "policy.json").exists():
+            try:
+                with open(models / "policy.json", encoding="utf-8") as existing:
+                    previous = json.load(existing)
+            except (OSError, ValueError):
+                previous = {}
+        # Retraining produces a new operating point; the version log is the audit
+        # trail, so it survives the rewrite instead of being silently dropped.
+        history = previous.get("versions") if isinstance(previous.get("versions"), list) else []
         json.dump({k: v for k, v in policy.items() if k != "decision"} | {
-            "costs": {"false_positive": costs.false_positive, "false_negative": costs.false_negative, "verification": costs.verification, "manual_review": costs.manual_review}
+            "costs": {"false_positive": costs.false_positive, "false_negative": costs.false_negative, "verification": costs.verification, "manual_review": costs.manual_review},
+            "versions": history,
+            "active_version": previous.get("active_version", 1),
         }, f, indent=2)
 
     report = {

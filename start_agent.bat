@@ -26,7 +26,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "$ports=@(%API_PORT%,%APP
 timeout /t 1 /nobreak >nul
 
 echo [2/5] Checking Python and ReturnShield API import...
-python -c "import sys; print('Python:',sys.executable); import src.api; print('API_IMPORT_OK'); assert any(getattr(r,'path','')=='/api/v1/returns' for r in src.api.app.routes); print('LIVE_ROUTE_OK')" 
+python -c "import sys; print('Python:',sys.executable); import api.main; print('API_IMPORT_OK'); assert any(getattr(r,'path','')=='/api/v1/returns' for r in api.main.app.routes); print('LIVE_ROUTE_OK')" 
 if errorlevel 1 (
   echo.
   echo [ERROR] ReturnShield API could not be imported from this project folder.
@@ -53,7 +53,7 @@ if not exist "%cd%\models\policy.json" (
 
 echo [4/5] Starting FastAPI from THIS project folder...
 if exist "%API_LOG%" del /q "%API_LOG%" >nul 2>&1
-start "ReturnShield REST API" /d "%cd%" cmd /c "color F0&& set PYTHONPATH=%cd%&& cd /d %cd%&& python -m uvicorn src.api:app --host 127.0.0.1 --port %API_PORT% --log-level info > "%API_LOG%" 2>&1"
+start "ReturnShield REST API" /d "%cd%" cmd /c "color F0&& set PYTHONPATH=%cd%&& cd /d %cd%&& python -m uvicorn api.main:app --host 127.0.0.1 --port %API_PORT% --log-level info > "%API_LOG%" 2>&1"
 
 echo Waiting for FastAPI to become ready...
 set "API_READY=0"
@@ -74,7 +74,7 @@ if "!API_READY!"=="0" (
   echo -------------- END API LOG --------------
   echo.
   echo Try manually:
-  echo   python -m uvicorn src.api:app --host 127.0.0.1 --port %API_PORT%
+  echo   python -m uvicorn api.main:app --host 127.0.0.1 --port %API_PORT%
   echo.
   pause
   exit /b 1
@@ -90,7 +90,7 @@ if errorlevel 1 (
 
 echo [5/5] Starting Streamlit dashboard...
 if exist "%APP_LOG%" del /q "%APP_LOG%" >nul 2>&1
-start "ReturnShield Operations Dashboard" /d "%cd%" cmd /c "color F0&& set PYTHONPATH=%cd%&& cd /d %cd%&& python -m streamlit run app.py --server.address 127.0.0.1 --server.port %APP_PORT% --server.maxUploadSize 1000 > "%APP_LOG%" 2>&1"
+start "ReturnShield Operations Dashboard" /d "%cd%" cmd /c "color F0&& set PYTHONPATH=%cd%&& cd /d %cd%&& python -m streamlit run dashboard/app.py --server.address 127.0.0.1 --server.port %APP_PORT% --server.maxUploadSize 1000 > "%APP_LOG%" 2>&1"
 
 echo.
 echo ============================================================

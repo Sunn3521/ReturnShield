@@ -7,8 +7,9 @@ import pandas as pd
 
 from src.model import load_bundle, predict_bundle
 from src.features import build_feature_table
+from src.paths import root as _project_root
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = _project_root()
 MODELS = ROOT / "models"
 DATA = ROOT / "data/processed"
 

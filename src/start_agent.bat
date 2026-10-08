@@ -27,7 +27,7 @@ if not exist "%cd%\models\model_bundle.joblib" (
 )
 
 echo [3/4] Starting FastAPI from THIS project folder...
-start "ReturnShield REST API" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn src.api:app --host 127.0.0.1 --port %API_PORT%"
+start "ReturnShield REST API" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m uvicorn api.main:app --host 127.0.0.1 --port %API_PORT%"
 timeout /t 3 /nobreak >nul
 
 python -c "import urllib.request,sys,json; u='http://127.0.0.1:%API_PORT%/api/v1/meta'; d=json.load(urllib.request.urlopen(u,timeout=5)); assert d.get('live_returns_endpoint')=='/api/v1/returns'; print('[OK] Live API route verified:',d['live_returns_endpoint'])"
@@ -39,7 +39,7 @@ if errorlevel 1 (
 )
 
 echo [4/4] Starting Streamlit dashboard...
-start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run app.py --server.address 127.0.0.1 --server.port %APP_PORT% --server.maxUploadSize 1000"
+start "ReturnShield Operations Dashboard" /d "%cd%" cmd /k "set PYTHONPATH=%cd%&& python -m streamlit run dashboard/app.py --server.address 127.0.0.1 --server.port %APP_PORT% --server.maxUploadSize 1000"
 
 echo.
 echo ============================================================

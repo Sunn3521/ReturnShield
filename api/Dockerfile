@@ -19,4 +19,4 @@ COPY . .
 EXPOSE 8501 8000
 
 # Default entrypoint starts Uvicorn REST server
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

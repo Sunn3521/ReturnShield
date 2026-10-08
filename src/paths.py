@@ -10,8 +10,8 @@ Resolution order:
 1. ``RETURNSHIELD_HOME``  - set by the delivery launcher; wins outright so a
    packaged app (source in ``app/``, assets beside the exe) behaves exactly
    like a source checkout.
-2. CWD, when it looks like the *whole* project (``src/api.py`` AND the model
-   bundle) - covers running ``python -m uvicorn src.api:app`` from a checkout.
+2. CWD, when it looks like the *whole* project (``api/api.py`` AND the model
+   bundle) - covers running ``python -m uvicorn api.main:app`` from a checkout.
    Requiring the assets matters: the packaged layout runs with cwd inside
    ``app/``, which has the source but not the models, and a source-only cwd
    check would resolve assets to a folder that does not exist.

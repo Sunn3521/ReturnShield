@@ -15,7 +15,7 @@ The delivery folder layout:
       Verify ReturnShield.bat   end-to-end self-test against a running stack
       requirements.txt          Python dependencies for the target machine
       README.txt                delivery-specific quickstart
-      app/                      source (src/, sdk/, app.py, run_pipeline.py, ...)
+      app/                      source (api/, dashboard/, src/, sdk/, ...)
       models/                   trained model bundle + policy + intent encoder
       data/raw, data/processed  reference data the app reads
       reports/                  held-out predictions + final report
@@ -48,7 +48,7 @@ STAGE = DIST / STAGE_NAME
 
 #: Repository items copied into app/ (source the machine's Python will run).
 APP_ITEMS = [
-    "src", "sdk", "app.py", "run_pipeline.py", "train_intent.py",
+    "api", "dashboard", "src", "sdk", "run_pipeline.py", "train_intent.py",
     "eval_pipeline.py", "eval_local_model.py", "requirements.txt",
     "DECISION_API.md", "DEMO.md", "README.md",
 ]
@@ -391,7 +391,7 @@ def write_bats() -> None:
 def verify_stage() -> bool:
     """Fail the build rather than ship an incomplete folder."""
     required = [
-        "app/src/api.py", "app/app.py", "app/run_pipeline.py",
+        "app/api/main.py", "app/dashboard/app.py", "app/run_pipeline.py",
         "models/model_bundle.joblib", "models/policy.json",
         "models/local/all-MiniLM-L6-v2/model.onnx",
         "data/raw", "data/processed", "reports/test_predictions.csv",

@@ -6,6 +6,68 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+INFRASTRUCTURE_COLUMNS = ("device_id", "address_id", "payment_fingerprint")
+
+_infra_cache: dict[str, pd.DataFrame] = {}
+
+
+def infrastructure_lookup(data_dir: str = "data/raw") -> pd.DataFrame:
+    """customer_id -> shared-infrastructure identifiers, cached per data dir.
+
+    Only the three identifiers cluster analysis needs; keeping the cache narrow
+    means a regenerated ``customers.csv`` stays cheap to reload.
+    """
+    cached = _infra_cache.get(data_dir)
+    if cached is not None:
+        return cached
+    path = Path(data_dir) / "customers.csv"
+    if not path.exists():
+        _infra_cache[data_dir] = pd.DataFrame(columns=["customer_id", *INFRASTRUCTURE_COLUMNS])
+        return _infra_cache[data_dir]
+    cols = ["customer_id", *[c for c in INFRASTRUCTURE_COLUMNS if c in _read_header(path)]]
+    lookup = pd.read_csv(path, usecols=cols)
+    lookup["customer_id"] = lookup["customer_id"].astype(str).str.strip().str.upper()
+    for col in INFRASTRUCTURE_COLUMNS:
+        if col in lookup.columns:
+            lookup[col] = lookup[col].astype("string").str.strip().replace({"": pd.NA, "nan": pd.NA})
+    _infra_cache[data_dir] = lookup
+    return lookup
+
+
+def _read_header(path: Path) -> list[str]:
+    with path.open(encoding="utf-8") as fh:
+        return fh.readline().strip().split(",")
+
+
+def attach_infrastructure_ids(df: pd.DataFrame, data_dir: str = "data/raw") -> pd.DataFrame:
+    """Restore infrastructure identifiers on a frame that only kept aggregates.
+
+    Scored exports (``reports/test_predictions.csv``) carry
+    ``device_linked_accounts`` but not the raw ids, so coordinated-account
+    analysis silently found nothing. The ids live in ``customers.csv`` keyed by
+    ``customer_id``, so join them back on. Frames that already carry an id are
+    left untouched, and nothing is invented when the lookup misses.
+    """
+    if df.empty or "customer_id" not in df.columns:
+        return df
+    missing = [c for c in INFRASTRUCTURE_COLUMNS if c not in df.columns]
+    if not missing:
+        return df
+    lookup = infrastructure_lookup(data_dir)
+    if lookup.empty:
+        return df
+    want = [c for c in missing if c in lookup.columns]
+    if not want:
+        return df
+    out = df.copy()
+    out["_rs_cust_key"] = out["customer_id"].astype(str).str.strip().str.upper()
+    out = out.merge(
+        lookup.rename(columns={"customer_id": "_rs_cust_key"})[["_rs_cust_key", *want]],
+        on="_rs_cust_key", how="left",
+    ).drop(columns=["_rs_cust_key"])
+    return out
+
+
 def build_abuse_graph(data_dir: str = "data/raw", min_cluster_size: int = 2) -> tuple[nx.Graph, pd.DataFrame]:
     p = Path(data_dir)
     customers = pd.read_csv(p / "customers.csv")
@@ -83,7 +145,7 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
         
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
-        line=dict(width=1.2, color='#B8C6D1'),
+        line=dict(width=1.2, color='#D6DBE1'),
         hoverinfo='none',
         mode='lines'
     )
@@ -109,14 +171,14 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
             abu = data.get("abusive", 0)
             ref = data.get("refund", 0.0)
             if abu > 0 or data.get("latent_type") in ("abusive", "coordinated") or float(data.get("risk", 0.0)) >= 0.68:
-                node_color.append("#E53E3E") # Crimson Red for high risk
+                node_color.append("#D13434") # Crimson Red for high risk
             else:
-                node_color.append("#3182CE") # Blue for normal customer
+                node_color.append("#049FD9") # Blue for normal customer
             node_text.append(f"<b>Customer {node}</b><br>Returns: {ret}<br>Abusive: {abu}<br>Refunds: ₹{ref:,.0f}")
         else:
             node_symbol.append("diamond")
             node_size.append(18)
-            node_color.append("#ED8936") # Orange for infrastructure node
+            node_color.append("#EAA200") # Orange for infrastructure node
             node_text.append(f"<b>{ntype.capitalize()}: {node}</b>")
             
     node_trace = go.Scatter(
@@ -126,9 +188,9 @@ def plot_cluster_graph(G: nx.Graph, cluster_nodes: list[str], title: str = "Susp
         text=[n for n in subG.nodes()],
         textposition="top center",
         hovertext=node_text,
-        textfont=dict(color="#23384D", size=10),
+        textfont=dict(color="#1A2432", size=10),
         hovertemplate="%{hovertext}<extra></extra>",
-        hoverlabel=dict(bgcolor='#12263A', bordercolor='#2B455C', font=dict(color='white', size=12)),
+        hoverlabel=dict(bgcolor='#1A2432', bordercolor='#2C3849', font=dict(color='white', size=12)),
         marker=dict(
             showscale=False,
             color=node_color,

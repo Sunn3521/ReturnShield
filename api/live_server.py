@@ -14,17 +14,18 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .explain import concise_reasoning, top_features
-from .model import load_bundle, predict_bundle
-from .responder import generate_agent_response
+from src.explain import concise_reasoning, top_features
+from src.model import load_bundle, predict_bundle
+from src.responder import generate_agent_response
+from src.paths import root as _project_root
 
-ROOT = Path(__file__).resolve().parent.parent if "Path" in globals() else None
+ROOT = _project_root()
 
 # Runtime-only in-memory event store for the fake live server.
 _EVENTS = deque(maxlen=100_000)
 _HISTORY_LOCK = threading.Lock()
 from pathlib import Path as _Path
-_HISTORY_PATH = _Path(__file__).resolve().parent.parent / "data" / "live" / "events.jsonl"
+_HISTORY_PATH = _project_root() / "data" / "live" / "events.jsonl"
 _HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
 _LOCK = threading.Lock()
 _GENERATOR_THREAD: threading.Thread | None = None
@@ -43,8 +44,7 @@ _POLICY = None
 def _ensure_model():
     global _BUNDLE, _POLICY
     if _BUNDLE is None:
-        from pathlib import Path
-        root = Path(__file__).resolve().parent.parent
+        root = _project_root()
         _BUNDLE = load_bundle(str(root / "models" / "model_bundle.joblib"))
         import json
         with open(root / "models" / "policy.json", "r", encoding="utf-8") as f:

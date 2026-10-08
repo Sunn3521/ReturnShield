@@ -3,13 +3,48 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Any
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
+
+from src.local_model import (
+    SEMANTIC_FLOOR,
+    SemanticIntentRouter,
+    get_embedder,
+    load_prototypes,
+    local_model_enabled,
+)
+
+#: Below this TF-IDF confidence the local ONNX encoder gets the final say.
+SEMANTIC_TRIGGER = 0.55
+
+#: Every column ``respond()`` may read. Clients should project their frame onto
+#: this set before posting: shipping all 48 columns x thousands of rows made a
+#: single chat turn take ~33 s and blow the caller's timeout.
+AGENT_COLUMNS = (
+    "return_id", "customer_id", "risk_probability", "decision",
+    "order_value", "return_value", "return_reason", "product_category",
+    "prediction_time", "generated_at", "abusive_return", "simulated_outcome",
+    "device_id", "address_id", "payment_fingerprint",
+)
+
+
+def phrase_match(phrase: str, low: str, strict: bool = True) -> bool:
+    """Match a keyword rule against lowercased text.
+
+    Single words are matched on word boundaries so that ``hi`` no longer fires
+    inside "things" or "shipping". Multi-word phrases stay substring matches,
+    because operators reword them ("export it", "download csv").
+    """
+    if not strict or " " in phrase.strip():
+        return phrase in low
+    return re.search(rf"\b{re.escape(phrase)}\b", low) is not None
 
 
 INTENT_EXAMPLES = {
@@ -113,15 +148,52 @@ class ReturnShieldChatAgent:
     """
 
     def __init__(self):
-        texts, labels = [], []
-        for intent, examples in INTENT_EXAMPLES.items():
-            texts.extend(examples)
-            labels.extend([intent] * len(examples))
-        self.model = Pipeline([
-            ("tfidf", TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True)),
-            ("clf", LogisticRegression(max_iter=2000, C=3.0, class_weight="balanced")),
-        ])
-        self.model.fit(texts, labels)
+        """Load the trained intent classifier, or train one if it is missing.
+
+        The persisted artifact (produced by ``python train_intent.py``) is trained
+        on the expanded dataset and scored on a held-out golden set. Falling back
+        to an in-process fit keeps the app working in a fresh checkout that has
+        not run the training script.
+        """
+        self.model = None
+        self.model_source = "none"
+        self.semantic_router = None
+        self.semantic_source = "disabled"
+        from src.paths import root as _project_root
+        artifact = _project_root() / "models" / "intent_classifier.joblib"
+        if artifact.exists():
+            try:
+                payload = joblib.load(artifact)
+                if isinstance(payload, dict) and "model" in payload:
+                    self.model = payload["model"]
+                    self.model_source = "artifact"
+            except Exception:
+                self.model = None
+                self.model_source = "none"
+
+        if self.model is None:
+            texts, labels = [], []
+            for intent, examples in INTENT_EXAMPLES.items():
+                texts.extend(examples)
+                labels.extend([intent] * len(examples))
+            self.model = Pipeline([
+                ("tfidf", TfidfVectorizer(ngram_range=(1, 2), sublinear_tf=True)),
+                ("clf", LogisticRegression(max_iter=2000, C=3.0, class_weight="balanced")),
+            ])
+            self.model.fit(texts, labels)
+            self.model_source = "in_process_legacy"
+
+        # Optional ONNX encoder fallback. Off unless RETURNSHIELD_LOCAL_MODEL is
+        # set, and it silently stays off when onnxruntime/tokenizers or the
+        # encoder files are missing -- the TF-IDF classifier still answers.
+        if local_model_enabled() and get_embedder() is not None:
+            precomputed = load_prototypes()
+            try:
+                self.semantic_router = SemanticIntentRouter(precomputed=precomputed)
+                self.semantic_source = "artifact" if precomputed else "rebuilt"
+            except Exception:
+                self.semantic_router = None
+                self.semantic_source = "unavailable"
 
     @staticmethod
     def _clean_number(x):
@@ -176,7 +248,7 @@ class ReturnShieldChatAgent:
             ("summary", ["give me a summary", "summarize", "current overview", "how is returnshield doing", "brief summary", "overall"]),
         ]
         for intent, phrases in rules:
-            if any(phrase in low for phrase in phrases):
+            if any(phrase_match(phrase, low) for phrase in phrases):
                 slots: dict[str, Any] = {}
                 if intent == "generate":
                     m = re.search(r"\b(\d{1,4})\b", low)
@@ -190,7 +262,15 @@ class ReturnShieldChatAgent:
         try:
             probs = self.model.predict_proba([clean])[0]
             intent = str(self.model.classes_[int(np.argmax(probs))])
-            return intent, float(np.max(probs)), {}
+            confidence = float(np.max(probs))
+            if confidence >= SEMANTIC_TRIGGER or self.semantic_router is None:
+                return intent, confidence, {}
+            # The lexical model is unsure: ask the local embedding space, which
+            # generalises across paraphrases that share no keywords.
+            routed, score = self.semantic_router.route(clean)
+            if routed and score >= SEMANTIC_FLOOR:
+                return routed, round(min(score, 0.97), 4), {"intent_source": "local_model"}
+            return intent, confidence, {}
         except Exception:
             return "help", 0.0, {}
 
